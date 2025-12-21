@@ -13,12 +13,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
-import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-} from '@/components/ui/sheet'
+import { IngressDetailSheet } from '@/components/IngressDetailSheet'
 import type { IngressInfo } from '@/api'
 
 export function IngressesPage() {
@@ -85,63 +80,11 @@ export function IngressesPage() {
             )}
 
             {/* Detail Sheet */}
-            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-                <SheetContent side="right" className="flex w-[700px] flex-col p-0 sm:max-w-[700px]">
-                    {selectedIngress && (
-                        <>
-                            <SheetHeader
-                                className="border-b border-border px-6 py-4"
-                                resourceKind="ingresses"
-                                resourceName={selectedIngress.name}
-                                namespace={selectedIngress.namespace}
-                                onYamlSuccess={handleRefresh}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <Network className="h-5 w-5 text-muted-foreground" />
-                                    <div>
-                                        <SheetTitle className="font-mono text-base">
-                                            {selectedIngress.name}
-                                        </SheetTitle>
-                                        <p className="text-xs text-muted-foreground">
-                                            {selectedIngress.namespace}
-                                        </p>
-                                    </div>
-                                </div>
-                            </SheetHeader>
-
-                            <div className="p-6">
-                                <div className="rounded-md bg-muted/30 p-4 space-y-4">
-                                    <div className="grid grid-cols-2 gap-4 text-sm">
-                                        <div>
-                                            <span className="text-muted-foreground">Class</span>
-                                            <div>
-                                                {selectedIngress.class ? (
-                                                    <Badge variant="secondary">{selectedIngress.class}</Badge>
-                                                ) : (
-                                                    <span className="text-muted-foreground">-</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <span className="text-muted-foreground">Age</span>
-                                            <p>{selectedIngress.age}</p>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <span className="text-muted-foreground text-sm block mb-2">Hosts</span>
-                                        <div className="space-y-1">
-                                            {selectedIngress.hosts.map((host, i) => (
-                                                <div key={i} className="font-mono text-sm">{host}</div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </>
-                    )}
-                </SheetContent>
-            </Sheet>
+            <IngressDetailSheet
+                ingress={selectedIngress}
+                open={sheetOpen}
+                onOpenChange={setSheetOpen}
+            />
         </div>
     )
 }

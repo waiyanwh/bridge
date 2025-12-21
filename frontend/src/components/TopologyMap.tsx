@@ -79,7 +79,11 @@ interface TopologyData {
     }>
 }
 
-export function TopologyMap() {
+interface TopologyMapProps {
+    onNodeClick?: (node: Node) => void
+}
+
+export function TopologyMap({ onNodeClick }: TopologyMapProps) {
     const { selectedNamespace } = useNamespaceStore()
     const [nodes, setNodes, onNodesChange] = useNodesState([])
     const [edges, setEdges, onEdgesChange] = useEdgesState([])
@@ -178,6 +182,7 @@ export function TopologyMap() {
                 fitViewOptions={{ padding: 0.2 }}
                 minZoom={0.2}
                 maxZoom={2}
+                onNodeClick={(_, node) => onNodeClick?.(node)}
             >
                 <Background color="#27272a" gap={20} />
                 <Controls className="bg-zinc-900 border-zinc-700 [&>button]:bg-zinc-800 [&>button]:border-zinc-700 [&>button]:text-zinc-300 [&>button:hover]:bg-zinc-700" />

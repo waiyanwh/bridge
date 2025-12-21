@@ -4,6 +4,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Layout } from '@/components/layout'
 import { CommandPalette } from '@/components/CommandPalette'
 import { Toaster } from '@/components/ui/toast'
+import { SettingsProvider } from '@/context/SettingsContext'
+import { GlobalQueryConfig } from '@/components/GlobalQueryConfig'
+import { SettingsPage } from '@/pages/SettingsPage'
 import {
     WorkloadsPage,
     NodesPage,
@@ -32,18 +35,6 @@ import {
     Home
 } from '@/pages'
 
-// Placeholder for settings
-function SettingsPage() {
-    return (
-        <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-                <h2 className="text-xl font-semibold">Settings</h2>
-                <p className="mt-2 text-muted-foreground">Coming soon...</p>
-            </div>
-        </div>
-    )
-}
-
 // Create a query client
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -51,6 +42,7 @@ const queryClient = new QueryClient({
             refetchOnWindowFocus: false,
             retry: 1,
             staleTime: 30000,
+            // refetchInterval will be controlled by GlobalQueryConfig
         },
     },
 })
@@ -121,10 +113,13 @@ function AppRoutes() {
 function App() {
     return (
         <QueryClientProvider client={queryClient}>
-            <BrowserRouter>
-                <AppRoutes />
-            </BrowserRouter>
-            <Toaster position="bottom-right" />
+            <SettingsProvider>
+                <GlobalQueryConfig />
+                <BrowserRouter>
+                    <AppRoutes />
+                </BrowserRouter>
+                <Toaster position="bottom-right" />
+            </SettingsProvider>
         </QueryClientProvider>
     )
 }

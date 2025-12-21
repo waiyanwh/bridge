@@ -8,7 +8,9 @@ import (
 	"github.com/waiyan/bridge/internal/k8s"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"time"
 )
 
 // TopologyHandler handles topology-related API requests
@@ -81,9 +83,13 @@ func (h *TopologyHandler) GetTopology(c *gin.Context) {
 				Position: Position{X: 0, Y: 0}, // Layout will be computed on frontend
 				Data: map[string]interface{}{
 					"label":     ing.Name,
+					"name":      ing.Name,
 					"kind":      "Ingress",
 					"namespace": ing.Namespace,
 					"hosts":     getIngressHosts(&ing),
+					"class":     getIngressClass(&ing),
+					"address":   getIngressAddress(&ing),
+					"age":       getAge(ing.CreationTimestamp),
 				},
 			})
 
@@ -118,11 +124,15 @@ func (h *TopologyHandler) GetTopology(c *gin.Context) {
 				Position: Position{X: 0, Y: 0},
 				Data: map[string]interface{}{
 					"label":     svc.Name,
+					"name":      svc.Name,
 					"kind":      "Service",
 					"namespace": svc.Namespace,
 					"type":      string(svc.Spec.Type),
-					"clusterIP": svc.Spec.ClusterIP,
-					"ports":     getServicePorts(&svc),
+					"clusterIP":  svc.Spec.ClusterIP,
+					"ports":      getServicePorts(&svc),
+					"externalIP": getServiceExternalIP(&svc),
+					"selector":   svc.Spec.Selector,
+					"age":        getAge(svc.CreationTimestamp),
 				},
 			})
 
@@ -150,10 +160,16 @@ func (h *TopologyHandler) GetTopology(c *gin.Context) {
 				Position: Position{X: 0, Y: 0},
 				Data: map[string]interface{}{
 					"label":     dep.Name,
+					"name":      dep.Name,
 					"kind":      "Deployment",
 					"namespace": dep.Namespace,
-					"replicas":  dep.Status.Replicas,
-					"ready":     ready,
+					"replicas":     dep.Status.Replicas,
+					"ready":        ready, // kept for graph compat
+					"readyCount":   ready,
+					"desiredCount": *dep.Spec.Replicas,
+					"images":       getDeploymentImages(&dep),
+					"selector":     dep.Spec.Selector.MatchLabels,
+					"age":          getAge(dep.CreationTimestamp),
 				},
 			})
 		}
@@ -179,6 +195,7 @@ func (h *TopologyHandler) GetTopology(c *gin.Context) {
 				Position: Position{X: 0, Y: 0},
 				Data: map[string]interface{}{
 					"label":     pod.Name,
+					"name":      pod.Name,
 					"kind":      "Pod",
 					"namespace": pod.Namespace,
 					"status":    status,
@@ -265,15 +282,66 @@ func getIngressHosts(ing *networkingv1.Ingress) []string {
 	return hosts
 }
 
+// getIngressClass extracts ingress class name
+func getIngressClass(ing *networkingv1.Ingress) string {
+	if ing.Spec.IngressClassName != nil {
+		return *ing.Spec.IngressClassName
+	}
+	return ""
+}
+
+// getIngressAddress extracts load balancer address
+func getIngressAddress(ing *networkingv1.Ingress) string {
+	if len(ing.Status.LoadBalancer.Ingress) > 0 {
+		if ing.Status.LoadBalancer.Ingress[0].Hostname != "" {
+			return ing.Status.LoadBalancer.Ingress[0].Hostname
+		}
+		return ing.Status.LoadBalancer.Ingress[0].IP
+	}
+	return ""
+}
+
+// getServiceExternalIP extracts external IP
+func getServiceExternalIP(svc *corev1.Service) string {
+	if len(svc.Status.LoadBalancer.Ingress) > 0 {
+		if svc.Status.LoadBalancer.Ingress[0].Hostname != "" {
+			return svc.Status.LoadBalancer.Ingress[0].Hostname
+		}
+		return svc.Status.LoadBalancer.Ingress[0].IP
+	}
+	return ""
+}
+
+// getDeploymentImages extracts container images
+func getDeploymentImages(dep *appsv1.Deployment) []string {
+	images := []string{}
+	for _, container := range dep.Spec.Template.Spec.Containers {
+		images = append(images, container.Image)
+	}
+	return images
+}
+
 // getServicePorts extracts port info from service
-func getServicePorts(svc *corev1.Service) []map[string]interface{} {
-	ports := []map[string]interface{}{}
+func getServicePorts(svc *corev1.Service) []string {
+	ports := []string{}
 	for _, p := range svc.Spec.Ports {
-		ports = append(ports, map[string]interface{}{
-			"port":       p.Port,
-			"targetPort": p.TargetPort.String(),
-			"protocol":   string(p.Protocol),
-		})
+		ports = append(ports, fmt.Sprintf("%d/%s", p.Port, p.Protocol))
 	}
 	return ports
 }
+
+// getAge calculates resource age
+func getAge(timestamp metav1.Time) string {
+	duration := time.Since(timestamp.Time)
+	if duration.Hours() > 24 {
+		return fmt.Sprintf("%dd", int(duration.Hours()/24))
+	}
+	if duration.Hours() > 1 {
+		return fmt.Sprintf("%dh", int(duration.Hours()))
+	}
+	if duration.Minutes() > 1 {
+		return fmt.Sprintf("%dm", int(duration.Minutes()))
+	}
+	return fmt.Sprintf("%ds", int(duration.Seconds()))
+}
+

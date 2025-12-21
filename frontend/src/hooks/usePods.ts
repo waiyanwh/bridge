@@ -6,7 +6,6 @@ export function usePods(namespace: string = 'default') {
     return useQuery<PodsResponse, Error>({
         queryKey: ['pods', namespace],
         queryFn: () => fetchPods(namespace),
-        refetchInterval: 10000,
     })
 }
 

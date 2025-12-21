@@ -13,12 +13,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
-import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-} from '@/components/ui/sheet'
+import { ServiceDetailSheet } from '@/components/ServiceDetailSheet'
 import { ForwardPortDialog } from '@/components/tunnels'
 import type { ServiceInfo } from '@/api'
 
@@ -121,63 +116,11 @@ export function ServicesPage() {
             )}
 
             {/* Detail Sheet */}
-            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-                <SheetContent side="right" className="flex w-[700px] flex-col p-0 sm:max-w-[700px]">
-                    {selectedService && (
-                        <>
-                            <SheetHeader
-                                className="border-b border-border px-6 py-4"
-                                resourceKind="services"
-                                resourceName={selectedService.name}
-                                namespace={selectedService.namespace}
-                                onYamlSuccess={handleRefresh}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <Layers className="h-5 w-5 text-muted-foreground" />
-                                    <div>
-                                        <SheetTitle className="font-mono text-base">
-                                            {selectedService.name}
-                                        </SheetTitle>
-                                        <p className="text-xs text-muted-foreground">
-                                            {selectedService.namespace}
-                                        </p>
-                                    </div>
-                                </div>
-                            </SheetHeader>
-
-                            <div className="p-6">
-                                <div className="rounded-md bg-muted/30 p-4 space-y-4">
-                                    <div className="grid grid-cols-2 gap-4 text-sm">
-                                        <div>
-                                            <span className="text-muted-foreground">Type</span>
-                                            <div>{getServiceTypeBadge(selectedService.type)}</div>
-                                        </div>
-                                        <div>
-                                            <span className="text-muted-foreground">Cluster IP</span>
-                                            <p className="font-mono">{selectedService.clusterIP}</p>
-                                        </div>
-                                        <div>
-                                            <span className="text-muted-foreground">Age</span>
-                                            <p>{selectedService.age}</p>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <span className="text-muted-foreground text-sm block mb-2">Ports</span>
-                                        <div className="flex flex-wrap gap-2">
-                                            {selectedService.ports.map((port, i) => (
-                                                <Badge key={i} variant="secondary" className="font-mono text-xs">
-                                                    {port}
-                                                </Badge>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </>
-                    )}
-                </SheetContent>
-            </Sheet>
+            <ServiceDetailSheet
+                service={selectedService}
+                open={sheetOpen}
+                onOpenChange={setSheetOpen}
+            />
         </div>
     )
 }

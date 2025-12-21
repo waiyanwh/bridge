@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useNamespaces } from '@/hooks'
 import { useNamespaceStore } from '@/store'
+import { useSettings } from '@/context/SettingsContext'
 import { cn } from '@/lib/utils'
 
 interface HeaderProps {
@@ -20,6 +21,7 @@ export function Header({
 
     const { data: namespacesData, isLoading, refetch } = useNamespaces()
     const { selectedNamespace, setNamespace } = useNamespaceStore()
+    const { showSystemNamespaces } = useSettings()
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -95,19 +97,21 @@ export function Header({
                             <div className="my-1 h-px bg-border" />
 
                             {/* Namespace list */}
-                            {namespacesData?.namespaces.map((ns) => (
-                                <button
-                                    key={ns}
-                                    className={cn(
-                                        "flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-sm hover:bg-accent",
-                                        selectedNamespace === ns && "bg-accent"
-                                    )}
-                                    onClick={() => handleSelectNamespace(ns)}
-                                >
-                                    <span className="font-mono">{ns}</span>
-                                    {selectedNamespace === ns && <Check className="h-4 w-4" />}
-                                </button>
-                            ))}
+                            {namespacesData?.namespaces
+                                .filter(ns => showSystemNamespaces || !['kube-system', 'kube-public', 'kube-node-lease'].includes(ns))
+                                .map((ns) => (
+                                    <button
+                                        key={ns}
+                                        className={cn(
+                                            "flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-sm hover:bg-accent",
+                                            selectedNamespace === ns && "bg-accent"
+                                        )}
+                                        onClick={() => handleSelectNamespace(ns)}
+                                    >
+                                        <span className="font-mono">{ns}</span>
+                                        {selectedNamespace === ns && <Check className="h-4 w-4" />}
+                                    </button>
+                                ))}
 
                             {!namespacesData && !isLoading && (
                                 <div className="px-2 py-4 text-center text-sm text-muted-foreground">
