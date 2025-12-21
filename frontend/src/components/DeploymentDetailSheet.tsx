@@ -104,7 +104,7 @@ export function DeploymentDetailSheet({ deployment, open, onOpenChange }: Deploy
                                     </p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 mr-8">
                                 <StatusDot
                                     status={isHealthy ? 'success' : 'warning'}
                                     label={deployment.replicas}

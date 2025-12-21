@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Box, Tag, Server, RefreshCw, TerminalSquare, FileCode, Cable } from 'lucide-react'
+import { Box, Tag, Server, RefreshCw, TerminalSquare, FileCode } from 'lucide-react'
 import {
     Sheet,
     SheetContent,
@@ -13,7 +13,7 @@ import { StatusDot, getPodStatusType } from '@/components/ui/status-dot'
 import { LogViewer } from './LogViewer'
 import { Terminal } from './Terminal'
 import { YamlEditorDialog } from '@/components/YamlEditorDialog'
-import { ForwardPortDialog } from '@/components/tunnels'
+
 import { usePodDetail } from '@/hooks'
 import { useQueryClient } from '@tanstack/react-query'
 import type { Pod, ContainerInfo } from '@/types'
@@ -27,7 +27,7 @@ interface PodDetailSheetProps {
 export function PodDetailSheet({ pod, open, onOpenChange }: PodDetailSheetProps) {
     const [activeTab, setActiveTab] = useState('overview')
     const [yamlEditorOpen, setYamlEditorOpen] = useState(false)
-    const [forwardPortOpen, setForwardPortOpen] = useState(false)
+
     const queryClient = useQueryClient()
 
     const { data: podDetail, isLoading } = usePodDetail(
@@ -62,16 +62,7 @@ export function PodDetailSheet({ pod, open, onOpenChange }: PodDetailSheetProps)
                                     </p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setForwardPortOpen(true)}
-                                    className="gap-2"
-                                >
-                                    <Cable className="h-4 w-4" />
-                                    Forward Port
-                                </Button>
+                            <div className="flex items-center gap-2 mr-8">
                                 <Button
                                     variant="outline"
                                     size="sm"
@@ -224,14 +215,7 @@ export function PodDetailSheet({ pod, open, onOpenChange }: PodDetailSheetProps)
                 onSuccess={handleYamlSuccess}
             />
 
-            {/* Forward Port Dialog */}
-            <ForwardPortDialog
-                open={forwardPortOpen}
-                onClose={() => setForwardPortOpen(false)}
-                namespace={pod.namespace}
-                resourceType="pod"
-                resourceName={pod.name}
-            />
+
         </>
     )
 }

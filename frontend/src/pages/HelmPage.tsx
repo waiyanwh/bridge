@@ -215,7 +215,9 @@ function HelmReleaseSheet({ release, open, onOpenChange }: HelmReleaseSheetProps
                                 </p>
                             </div>
                         </div>
-                        {getStatusBadge(release.status)}
+                        <div className="mr-8">
+                            {getStatusBadge(release.status)}
+                        </div>
                     </div>
                 </SheetHeader>
 
