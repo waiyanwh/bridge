@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Server, Box, ScrollText, FileCode, RefreshCw, Scale } from 'lucide-react'
+import { Server, Box, ScrollText, RefreshCw, Scale } from 'lucide-react'
 import {
     Sheet,
     SheetContent,
@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { StatusDot } from '@/components/ui/status-dot'
 import { AggregatedLogs } from './AggregatedLogs'
-import { YamlEditorDialog } from '@/components/YamlEditorDialog'
+
 import { useQueryClient } from '@tanstack/react-query'
 import { restartWorkload, scaleWorkload } from '@/api'
 import { toast } from '@/components/ui/toast'
@@ -26,7 +26,7 @@ interface DeploymentDetailSheetProps {
 
 export function DeploymentDetailSheet({ deployment, open, onOpenChange }: DeploymentDetailSheetProps) {
     const [activeTab, setActiveTab] = useState('overview')
-    const [yamlEditorOpen, setYamlEditorOpen] = useState(false)
+
     const [isRestarting, setIsRestarting] = useState(false)
     const [showScalePopover, setShowScalePopover] = useState(false)
     const [newReplicas, setNewReplicas] = useState<number>(0)
@@ -91,7 +91,13 @@ export function DeploymentDetailSheet({ deployment, open, onOpenChange }: Deploy
             <Sheet open={open} onOpenChange={onOpenChange}>
                 <SheetContent side="right" className="flex w-[700px] flex-col p-0 sm:max-w-[700px]">
                     {/* Header */}
-                    <SheetHeader className="border-b border-border px-6 py-4">
+                    <SheetHeader
+                        className="border-b border-border px-6 py-4"
+                        resourceKind="deployments"
+                        resourceName={deployment.name}
+                        namespace={deployment.namespace}
+                        onYamlSuccess={handleYamlSuccess}
+                    >
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <Server className="h-5 w-5 text-muted-foreground" />
@@ -104,7 +110,7 @@ export function DeploymentDetailSheet({ deployment, open, onOpenChange }: Deploy
                                     </p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 mr-8">
+                            <div className="flex items-center gap-2">
                                 <StatusDot
                                     status={isHealthy ? 'success' : 'warning'}
                                     label={deployment.replicas}
@@ -206,16 +212,6 @@ export function DeploymentDetailSheet({ deployment, open, onOpenChange }: Deploy
 
                         <div className="flex-1" />
 
-                        {/* Edit YAML */}
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setYamlEditorOpen(true)}
-                            className="gap-2"
-                        >
-                            <FileCode className="h-4 w-4" />
-                            Edit YAML
-                        </Button>
                     </div>
 
                     {/* Tabs */}
@@ -287,16 +283,6 @@ export function DeploymentDetailSheet({ deployment, open, onOpenChange }: Deploy
                     </Tabs>
                 </SheetContent>
             </Sheet>
-
-            {/* YAML Editor Dialog */}
-            <YamlEditorDialog
-                resourceType="deployments"
-                namespace={deployment.namespace}
-                name={deployment.name}
-                open={yamlEditorOpen}
-                onOpenChange={setYamlEditorOpen}
-                onSuccess={handleYamlSuccess}
-            />
         </>
     )
 }

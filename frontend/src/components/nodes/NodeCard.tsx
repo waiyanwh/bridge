@@ -6,6 +6,7 @@ import type { NodeInfo } from '@/types'
 
 interface NodeCardProps {
     node: NodeInfo
+    onClick?: () => void
 }
 
 function formatBytes(bytes: number): string {
@@ -25,11 +26,14 @@ function formatCPU(millicores: number): string {
     return `${millicores}m`
 }
 
-export function NodeCard({ node }: NodeCardProps) {
+export function NodeCard({ node, onClick }: NodeCardProps) {
     const isReady = node.status === 'Ready'
 
     return (
-        <Card className="transition-colors hover:border-muted-foreground/30">
+        <Card
+            className={`transition-all hover:border-muted-foreground/30 ${onClick ? 'cursor-pointer hover:shadow-md' : ''}`}
+            onClick={onClick}
+        >
             <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">

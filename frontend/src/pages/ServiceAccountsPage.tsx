@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { RefreshCw, AlertCircle, User } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useServiceAccounts } from '@/hooks'
@@ -12,6 +13,12 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet'
 import type { ServiceAccountInfo } from '@/api'
 
 export function ServiceAccountsPage() {
@@ -20,8 +27,16 @@ export function ServiceAccountsPage() {
     const namespace = selectedNamespace === 'all' ? '' : selectedNamespace
     const { data, isLoading, isError, isFetching } = useServiceAccounts(namespace)
 
+    const [selectedSA, setSelectedSA] = useState<ServiceAccountInfo | null>(null)
+    const [sheetOpen, setSheetOpen] = useState(false)
+
     const handleRefresh = () => {
         queryClient.invalidateQueries({ queryKey: ['serviceaccounts', namespace] })
+    }
+
+    const handleRowClick = (sa: ServiceAccountInfo) => {
+        setSelectedSA(sa)
+        setSheetOpen(true)
     }
 
     return (
@@ -63,13 +78,64 @@ export function ServiceAccountsPage() {
             )}
 
             {!isLoading && !isError && data && (
-                <ServiceAccountsTable serviceAccounts={data.serviceAccounts} />
+                <ServiceAccountsTable
+                    serviceAccounts={data.serviceAccounts}
+                    onRowClick={handleRowClick}
+                />
             )}
+
+            {/* Detail Sheet */}
+            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+                <SheetContent side="right" className="flex w-[700px] flex-col p-0 sm:max-w-[700px]">
+                    {selectedSA && (
+                        <>
+                            <SheetHeader
+                                className="border-b border-border px-6 py-4"
+                                resourceKind="serviceaccounts"
+                                resourceName={selectedSA.name}
+                                namespace={selectedSA.namespace}
+                                onYamlSuccess={handleRefresh}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <User className="h-5 w-5 text-muted-foreground" />
+                                    <div>
+                                        <SheetTitle className="font-mono text-base">
+                                            {selectedSA.name}
+                                        </SheetTitle>
+                                        <p className="text-xs text-muted-foreground">
+                                            {selectedSA.namespace}
+                                        </p>
+                                    </div>
+                                </div>
+                            </SheetHeader>
+
+                            <div className="p-6">
+                                <div className="rounded-md bg-muted/30 p-4 space-y-4">
+                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                            <span className="text-muted-foreground">Secrets</span>
+                                            <div>
+                                                <Badge variant="secondary">
+                                                    {selectedSA.secretsCount} secret{selectedSA.secretsCount !== 1 ? 's' : ''}
+                                                </Badge>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Age</span>
+                                            <p>{selectedSA.age}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </SheetContent>
+            </Sheet>
         </div>
     )
 }
 
-function ServiceAccountsTable({ serviceAccounts }: { serviceAccounts: ServiceAccountInfo[] }) {
+function ServiceAccountsTable({ serviceAccounts, onRowClick }: { serviceAccounts: ServiceAccountInfo[], onRowClick: (sa: ServiceAccountInfo) => void }) {
     if (serviceAccounts.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -92,7 +158,11 @@ function ServiceAccountsTable({ serviceAccounts }: { serviceAccounts: ServiceAcc
                 </TableHeader>
                 <TableBody>
                     {serviceAccounts.map((sa) => (
-                        <TableRow key={`${sa.namespace}/${sa.name}`}>
+                        <TableRow
+                            key={`${sa.namespace}/${sa.name}`}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => onRowClick(sa)}
+                        >
                             <TableCell className="font-mono text-sm font-medium">{sa.name}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">{sa.namespace}</TableCell>
                             <TableCell>

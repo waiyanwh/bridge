@@ -48,20 +48,63 @@ type ApplyYAMLRequest struct {
 // getGVR returns the GroupVersionResource for a resource type
 func getGVR(resourceType string) (schema.GroupVersionResource, bool) {
 	resourceMap := map[string]schema.GroupVersionResource{
-		"pods":        {Group: "", Version: "v1", Resource: "pods"},
-		"pod":         {Group: "", Version: "v1", Resource: "pods"},
-		"services":    {Group: "", Version: "v1", Resource: "services"},
-		"service":     {Group: "", Version: "v1", Resource: "services"},
-		"configmaps":  {Group: "", Version: "v1", Resource: "configmaps"},
-		"configmap":   {Group: "", Version: "v1", Resource: "configmaps"},
-		"secrets":     {Group: "", Version: "v1", Resource: "secrets"},
-		"secret":      {Group: "", Version: "v1", Resource: "secrets"},
-		"deployments": {Group: "apps", Version: "v1", Resource: "deployments"},
-		"deployment":  {Group: "apps", Version: "v1", Resource: "deployments"},
-		"nodes":       {Group: "", Version: "v1", Resource: "nodes"},
-		"node":        {Group: "", Version: "v1", Resource: "nodes"},
-		"namespaces":  {Group: "", Version: "v1", Resource: "namespaces"},
-		"namespace":   {Group: "", Version: "v1", Resource: "namespaces"},
+		// Workloads
+		"pods":          {Group: "", Version: "v1", Resource: "pods"},
+		"pod":           {Group: "", Version: "v1", Resource: "pods"},
+		"deployments":   {Group: "apps", Version: "v1", Resource: "deployments"},
+		"deployment":    {Group: "apps", Version: "v1", Resource: "deployments"},
+		"statefulsets":  {Group: "apps", Version: "v1", Resource: "statefulsets"},
+		"statefulset":   {Group: "apps", Version: "v1", Resource: "statefulsets"},
+		"daemonsets":    {Group: "apps", Version: "v1", Resource: "daemonsets"},
+		"daemonset":     {Group: "apps", Version: "v1", Resource: "daemonsets"},
+		"replicasets":   {Group: "apps", Version: "v1", Resource: "replicasets"},
+		"replicaset":    {Group: "apps", Version: "v1", Resource: "replicasets"},
+		"cronjobs":      {Group: "batch", Version: "v1", Resource: "cronjobs"},
+		"cronjob":       {Group: "batch", Version: "v1", Resource: "cronjobs"},
+		"jobs":          {Group: "batch", Version: "v1", Resource: "jobs"},
+		"job":           {Group: "batch", Version: "v1", Resource: "jobs"},
+
+		// Network
+		"services":        {Group: "", Version: "v1", Resource: "services"},
+		"service":         {Group: "", Version: "v1", Resource: "services"},
+		"ingresses":       {Group: "networking.k8s.io", Version: "v1", Resource: "ingresses"},
+		"ingress":         {Group: "networking.k8s.io", Version: "v1", Resource: "ingresses"},
+		"networkpolicies": {Group: "networking.k8s.io", Version: "v1", Resource: "networkpolicies"},
+		"networkpolicy":   {Group: "networking.k8s.io", Version: "v1", Resource: "networkpolicies"},
+
+		// Storage
+		"persistentvolumeclaims": {Group: "", Version: "v1", Resource: "persistentvolumeclaims"},
+		"persistentvolumeclaim":  {Group: "", Version: "v1", Resource: "persistentvolumeclaims"},
+		"pvc":                    {Group: "", Version: "v1", Resource: "persistentvolumeclaims"},
+		"persistentvolumes":      {Group: "", Version: "v1", Resource: "persistentvolumes"},
+		"persistentvolume":       {Group: "", Version: "v1", Resource: "persistentvolumes"},
+		"pv":                     {Group: "", Version: "v1", Resource: "persistentvolumes"},
+		"storageclasses":         {Group: "storage.k8s.io", Version: "v1", Resource: "storageclasses"},
+		"storageclass":           {Group: "storage.k8s.io", Version: "v1", Resource: "storageclasses"},
+
+		// Configuration
+		"configmaps": {Group: "", Version: "v1", Resource: "configmaps"},
+		"configmap":  {Group: "", Version: "v1", Resource: "configmaps"},
+		"secrets":    {Group: "", Version: "v1", Resource: "secrets"},
+		"secret":     {Group: "", Version: "v1", Resource: "secrets"},
+
+		// Access
+		"serviceaccounts":     {Group: "", Version: "v1", Resource: "serviceaccounts"},
+		"serviceaccount":      {Group: "", Version: "v1", Resource: "serviceaccounts"},
+		"roles":               {Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "roles"},
+		"role":                {Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "roles"},
+		"rolebindings":        {Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "rolebindings"},
+		"rolebinding":         {Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "rolebindings"},
+		"clusterroles":        {Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
+		"clusterrole":         {Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
+		"clusterrolebindings": {Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterrolebindings"},
+		"clusterrolebinding":  {Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterrolebindings"},
+
+		// Cluster
+		"nodes":     {Group: "", Version: "v1", Resource: "nodes"},
+		"node":      {Group: "", Version: "v1", Resource: "nodes"},
+		"namespaces": {Group: "", Version: "v1", Resource: "namespaces"},
+		"namespace":  {Group: "", Version: "v1", Resource: "namespaces"},
 	}
 
 	gvr, ok := resourceMap[strings.ToLower(resourceType)]
@@ -71,10 +114,19 @@ func getGVR(resourceType string) (schema.GroupVersionResource, bool) {
 // isNamespaced returns whether a resource type is namespaced
 func isNamespaced(resourceType string) bool {
 	clusterScoped := map[string]bool{
-		"nodes":      true,
-		"node":       true,
-		"namespaces": true,
-		"namespace":  true,
+		"nodes":               true,
+		"node":                true,
+		"namespaces":          true,
+		"namespace":           true,
+		"persistentvolumes":   true,
+		"persistentvolume":    true,
+		"pv":                  true,
+		"storageclasses":      true,
+		"storageclass":        true,
+		"clusterroles":        true,
+		"clusterrole":         true,
+		"clusterrolebindings": true,
+		"clusterrolebinding":  true,
 	}
 	return !clusterScoped[strings.ToLower(resourceType)]
 }

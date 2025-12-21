@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { RefreshCw, AlertCircle, Clock } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCronJobs } from '@/hooks'
@@ -12,6 +13,12 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet'
 import type { CronJobInfo } from '@/api'
 
 export function CronJobsPage() {
@@ -20,8 +27,16 @@ export function CronJobsPage() {
     const namespace = selectedNamespace === 'all' ? '' : selectedNamespace
     const { data, isLoading, isError, isFetching } = useCronJobs(namespace)
 
+    const [selectedCronJob, setSelectedCronJob] = useState<CronJobInfo | null>(null)
+    const [sheetOpen, setSheetOpen] = useState(false)
+
     const handleRefresh = () => {
         queryClient.invalidateQueries({ queryKey: ['cronjobs', namespace] })
+    }
+
+    const handleRowClick = (cj: CronJobInfo) => {
+        setSelectedCronJob(cj)
+        setSheetOpen(true)
     }
 
     return (
@@ -63,13 +78,68 @@ export function CronJobsPage() {
             )}
 
             {!isLoading && !isError && data && (
-                <CronJobsTable cronJobs={data.cronJobs} />
+                <CronJobsTable
+                    cronJobs={data.cronJobs}
+                    onRowClick={handleRowClick}
+                />
             )}
+
+            {/* Detail Sheet */}
+            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+                <SheetContent side="right" className="flex w-[700px] flex-col p-0 sm:max-w-[700px]">
+                    {selectedCronJob && (
+                        <>
+                            <SheetHeader
+                                className="border-b border-border px-6 py-4"
+                                resourceKind="cronjobs"
+                                resourceName={selectedCronJob.name}
+                                namespace={selectedCronJob.namespace}
+                                onYamlSuccess={handleRefresh}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Clock className="h-5 w-5 text-muted-foreground" />
+                                    <div>
+                                        <SheetTitle className="font-mono text-base">
+                                            {selectedCronJob.name}
+                                        </SheetTitle>
+                                        <p className="text-xs text-muted-foreground">
+                                            {selectedCronJob.namespace}
+                                        </p>
+                                    </div>
+                                </div>
+                            </SheetHeader>
+
+                            <div className="p-6">
+                                <div className="rounded-md bg-muted/30 p-4 space-y-4">
+                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                            <span className="text-muted-foreground">Schedule</span>
+                                            <p className="font-mono">{selectedCronJob.schedule}</p>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Age</span>
+                                            <p>{selectedCronJob.age}</p>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Last Schedule</span>
+                                            <p>{selectedCronJob.lastScheduleTime}</p>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Active Jobs</span>
+                                            <p>{selectedCronJob.active}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </SheetContent>
+            </Sheet>
         </div>
     )
 }
 
-function CronJobsTable({ cronJobs }: { cronJobs: CronJobInfo[] }) {
+function CronJobsTable({ cronJobs, onRowClick }: { cronJobs: CronJobInfo[], onRowClick: (cj: CronJobInfo) => void }) {
     if (cronJobs.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -95,7 +165,11 @@ function CronJobsTable({ cronJobs }: { cronJobs: CronJobInfo[] }) {
                 </TableHeader>
                 <TableBody>
                     {cronJobs.map((cj) => (
-                        <TableRow key={`${cj.namespace}/${cj.name}`}>
+                        <TableRow
+                            key={`${cj.namespace}/${cj.name}`}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => onRowClick(cj)}
+                        >
                             <TableCell className="font-mono text-sm font-medium">{cj.name}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">{cj.namespace}</TableCell>
                             <TableCell>

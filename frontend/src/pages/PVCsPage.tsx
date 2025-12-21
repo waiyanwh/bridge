@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { RefreshCw, AlertCircle, HardDrive } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { usePVCs } from '@/hooks'
@@ -12,6 +13,12 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet'
 import type { PVCInfo } from '@/api'
 
 export function PVCsPage() {
@@ -20,8 +27,16 @@ export function PVCsPage() {
     const namespace = selectedNamespace === 'all' ? '' : selectedNamespace
     const { data, isLoading, isError, isFetching } = usePVCs(namespace)
 
+    const [selectedPVC, setSelectedPVC] = useState<PVCInfo | null>(null)
+    const [sheetOpen, setSheetOpen] = useState(false)
+
     const handleRefresh = () => {
         queryClient.invalidateQueries({ queryKey: ['pvcs', namespace] })
+    }
+
+    const handleRowClick = (pvc: PVCInfo) => {
+        setSelectedPVC(pvc)
+        setSheetOpen(true)
     }
 
     return (
@@ -63,8 +78,83 @@ export function PVCsPage() {
             )}
 
             {!isLoading && !isError && data && (
-                <PVCsTable pvcs={data.pvcs} />
+                <PVCsTable
+                    pvcs={data.pvcs}
+                    onRowClick={handleRowClick}
+                />
             )}
+
+            {/* Detail Sheet */}
+            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+                <SheetContent side="right" className="flex w-[700px] flex-col p-0 sm:max-w-[700px]">
+                    {selectedPVC && (
+                        <>
+                            <SheetHeader
+                                className="border-b border-border px-6 py-4"
+                                resourceKind="persistentvolumeclaims"
+                                resourceName={selectedPVC.name}
+                                namespace={selectedPVC.namespace}
+                                onYamlSuccess={handleRefresh}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <HardDrive className="h-5 w-5 text-muted-foreground" />
+                                    <div>
+                                        <SheetTitle className="font-mono text-base">
+                                            {selectedPVC.name}
+                                        </SheetTitle>
+                                        <p className="text-xs text-muted-foreground">
+                                            {selectedPVC.namespace}
+                                        </p>
+                                    </div>
+                                </div>
+                            </SheetHeader>
+
+                            <div className="p-6">
+                                <div className="rounded-md bg-muted/30 p-4 space-y-4">
+                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                            <span className="text-muted-foreground">Status</span>
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    {getStatusIndicator(selectedPVC.status)}
+                                                    <span>{selectedPVC.status}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Capacity</span>
+                                            <p className="font-mono">{selectedPVC.capacity}</p>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Storage Class</span>
+                                            <p>{selectedPVC.storageClass || '-'}</p>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Volume</span>
+                                            <p className="font-mono text-blue-400">{selectedPVC.volumeName || '-'}</p>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Age</span>
+                                            <p>{selectedPVC.age}</p>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <span className="text-muted-foreground text-sm block mb-2">Access Modes</span>
+                                        <div className="flex flex-wrap gap-2">
+                                            {selectedPVC.accessModes.map((mode, i) => (
+                                                <Badge key={i} variant="secondary" className="font-mono text-xs">
+                                                    {mode}
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </SheetContent>
+            </Sheet>
         </div>
     )
 }
@@ -82,7 +172,7 @@ function getStatusIndicator(status: string) {
     }
 }
 
-function PVCsTable({ pvcs }: { pvcs: PVCInfo[] }) {
+function PVCsTable({ pvcs, onRowClick }: { pvcs: PVCInfo[], onRowClick: (pvc: PVCInfo) => void }) {
     if (pvcs.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -109,7 +199,11 @@ function PVCsTable({ pvcs }: { pvcs: PVCInfo[] }) {
                 </TableHeader>
                 <TableBody>
                     {pvcs.map((pvc) => (
-                        <TableRow key={`${pvc.namespace}/${pvc.name}`}>
+                        <TableRow
+                            key={`${pvc.namespace}/${pvc.name}`}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => onRowClick(pvc)}
+                        >
                             <TableCell className="font-mono text-sm font-medium">{pvc.name}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">{pvc.namespace}</TableCell>
                             <TableCell>

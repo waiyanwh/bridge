@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { RefreshCw, AlertCircle, Database } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { usePVs } from '@/hooks'
@@ -11,14 +12,28 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet'
 import type { PVInfo } from '@/api'
 
 export function PVsPage() {
     const queryClient = useQueryClient()
     const { data, isLoading, isError, isFetching } = usePVs()
 
+    const [selectedPV, setSelectedPV] = useState<PVInfo | null>(null)
+    const [sheetOpen, setSheetOpen] = useState(false)
+
     const handleRefresh = () => {
         queryClient.invalidateQueries({ queryKey: ['pvs'] })
+    }
+
+    const handleRowClick = (pv: PVInfo) => {
+        setSelectedPV(pv)
+        setSheetOpen(true)
     }
 
     return (
@@ -58,8 +73,87 @@ export function PVsPage() {
             )}
 
             {!isLoading && !isError && data && (
-                <PVsTable pvs={data.pvs} />
+                <PVsTable
+                    pvs={data.pvs}
+                    onRowClick={handleRowClick}
+                />
             )}
+
+            {/* Detail Sheet */}
+            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+                <SheetContent side="right" className="flex w-[700px] flex-col p-0 sm:max-w-[700px]">
+                    {selectedPV && (
+                        <>
+                            <SheetHeader
+                                className="border-b border-border px-6 py-4"
+                                resourceKind="persistentvolumes"
+                                resourceName={selectedPV.name}
+                                namespace="" // Cluster-scoped
+                                onYamlSuccess={handleRefresh}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Database className="h-5 w-5 text-muted-foreground" />
+                                    <div>
+                                        <SheetTitle className="font-mono text-base">
+                                            {selectedPV.name}
+                                        </SheetTitle>
+                                        <p className="text-xs text-muted-foreground">
+                                            Cluster Scoped
+                                        </p>
+                                    </div>
+                                </div>
+                            </SheetHeader>
+
+                            <div className="p-6">
+                                <div className="rounded-md bg-muted/30 p-4 space-y-4">
+                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                            <span className="text-muted-foreground">Status</span>
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    {getStatusIndicator(selectedPV.status)}
+                                                    <span>{selectedPV.status}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Capacity</span>
+                                            <p className="font-mono">{selectedPV.capacity}</p>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Reclaim Policy</span>
+                                            <div className="mt-1">{getReclaimPolicyBadge(selectedPV.reclaimPolicy)}</div>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Storage Class</span>
+                                            <p>{selectedPV.storageClass || '-'}</p>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Claim</span>
+                                            <p className="font-mono text-blue-400">{selectedPV.claim || '-'}</p>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Age</span>
+                                            <p>{selectedPV.age}</p>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <span className="text-muted-foreground text-sm block mb-2">Access Modes</span>
+                                        <div className="flex flex-wrap gap-2">
+                                            {selectedPV.accessModes.map((mode, i) => (
+                                                <Badge key={i} variant="secondary" className="font-mono text-xs">
+                                                    {mode}
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </SheetContent>
+            </Sheet>
         </div>
     )
 }
@@ -92,7 +186,7 @@ function getReclaimPolicyBadge(policy: string) {
     }
 }
 
-function PVsTable({ pvs }: { pvs: PVInfo[] }) {
+function PVsTable({ pvs, onRowClick }: { pvs: PVInfo[], onRowClick: (pv: PVInfo) => void }) {
     if (pvs.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -119,7 +213,11 @@ function PVsTable({ pvs }: { pvs: PVInfo[] }) {
                 </TableHeader>
                 <TableBody>
                     {pvs.map((pv) => (
-                        <TableRow key={pv.name}>
+                        <TableRow
+                            key={pv.name}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => onRowClick(pv)}
+                        >
                             <TableCell className="font-mono text-sm font-medium">{pv.name}</TableCell>
                             <TableCell>
                                 <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">

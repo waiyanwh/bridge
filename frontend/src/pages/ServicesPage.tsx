@@ -13,6 +13,12 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet'
 import { ForwardPortDialog } from '@/components/tunnels'
 import type { ServiceInfo } from '@/api'
 
@@ -24,15 +30,25 @@ export function ServicesPage() {
 
     // State for forward port dialog
     const [forwardDialogOpen, setForwardDialogOpen] = useState(false)
+    const [serviceForPortForward, setServiceForPortForward] = useState<ServiceInfo | null>(null)
+
+    // State for detail sheet
     const [selectedService, setSelectedService] = useState<ServiceInfo | null>(null)
+    const [sheetOpen, setSheetOpen] = useState(false)
 
     const handleRefresh = () => {
         queryClient.invalidateQueries({ queryKey: ['services', namespace] })
     }
 
-    const handleForwardPort = (service: ServiceInfo) => {
-        setSelectedService(service)
+    const handleForwardPort = (e: React.MouseEvent, service: ServiceInfo) => {
+        e.stopPropagation() // Prevent row click
+        setServiceForPortForward(service)
         setForwardDialogOpen(true)
+    }
+
+    const handleRowClick = (service: ServiceInfo) => {
+        setSelectedService(service)
+        setSheetOpen(true)
     }
 
     // Extract port numbers from service ports (e.g., "80/TCP" -> 80)
@@ -85,23 +101,83 @@ export function ServicesPage() {
                 <ServicesTable
                     services={data.services}
                     onForwardPort={handleForwardPort}
+                    onRowClick={handleRowClick}
                 />
             )}
 
             {/* Forward Port Dialog */}
-            {selectedService && (
+            {serviceForPortForward && (
                 <ForwardPortDialog
                     open={forwardDialogOpen}
                     onClose={() => {
                         setForwardDialogOpen(false)
-                        setSelectedService(null)
+                        setServiceForPortForward(null)
                     }}
-                    namespace={selectedService.namespace}
+                    namespace={serviceForPortForward.namespace}
                     resourceType="service"
-                    resourceName={selectedService.name}
-                    availablePorts={getPortNumbers(selectedService.ports)}
+                    resourceName={serviceForPortForward.name}
+                    availablePorts={getPortNumbers(serviceForPortForward.ports)}
                 />
             )}
+
+            {/* Detail Sheet */}
+            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+                <SheetContent side="right" className="flex w-[700px] flex-col p-0 sm:max-w-[700px]">
+                    {selectedService && (
+                        <>
+                            <SheetHeader
+                                className="border-b border-border px-6 py-4"
+                                resourceKind="services"
+                                resourceName={selectedService.name}
+                                namespace={selectedService.namespace}
+                                onYamlSuccess={handleRefresh}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Layers className="h-5 w-5 text-muted-foreground" />
+                                    <div>
+                                        <SheetTitle className="font-mono text-base">
+                                            {selectedService.name}
+                                        </SheetTitle>
+                                        <p className="text-xs text-muted-foreground">
+                                            {selectedService.namespace}
+                                        </p>
+                                    </div>
+                                </div>
+                            </SheetHeader>
+
+                            <div className="p-6">
+                                <div className="rounded-md bg-muted/30 p-4 space-y-4">
+                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                            <span className="text-muted-foreground">Type</span>
+                                            <div>{getServiceTypeBadge(selectedService.type)}</div>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Cluster IP</span>
+                                            <p className="font-mono">{selectedService.clusterIP}</p>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Age</span>
+                                            <p>{selectedService.age}</p>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <span className="text-muted-foreground text-sm block mb-2">Ports</span>
+                                        <div className="flex flex-wrap gap-2">
+                                            {selectedService.ports.map((port, i) => (
+                                                <Badge key={i} variant="secondary" className="font-mono text-xs">
+                                                    {port}
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </SheetContent>
+            </Sheet>
         </div>
     )
 }
@@ -123,10 +199,11 @@ function getServiceTypeBadge(type: string) {
 
 interface ServicesTableProps {
     services: ServiceInfo[]
-    onForwardPort: (service: ServiceInfo) => void
+    onForwardPort: (e: React.MouseEvent, service: ServiceInfo) => void
+    onRowClick: (service: ServiceInfo) => void
 }
 
-function ServicesTable({ services, onForwardPort }: ServicesTableProps) {
+function ServicesTable({ services, onForwardPort, onRowClick }: ServicesTableProps) {
     if (services.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -152,7 +229,11 @@ function ServicesTable({ services, onForwardPort }: ServicesTableProps) {
                 </TableHeader>
                 <TableBody>
                     {services.map((svc) => (
-                        <TableRow key={`${svc.namespace}/${svc.name}`}>
+                        <TableRow
+                            key={`${svc.namespace}/${svc.name}`}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => onRowClick(svc)}
+                        >
                             <TableCell className="font-mono text-sm font-medium">{svc.name}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">{svc.namespace}</TableCell>
                             <TableCell>{getServiceTypeBadge(svc.type)}</TableCell>
@@ -174,7 +255,7 @@ function ServicesTable({ services, onForwardPort }: ServicesTableProps) {
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => onForwardPort(svc)}
+                                    onClick={(e) => onForwardPort(e, svc)}
                                     className="gap-1.5"
                                 >
                                     <Cable className="h-4 w-4" />

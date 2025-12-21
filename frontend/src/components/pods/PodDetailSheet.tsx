@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Box, Tag, Server, RefreshCw, TerminalSquare, FileCode } from 'lucide-react'
+import { Box, Tag, Server, RefreshCw, TerminalSquare } from 'lucide-react'
 import {
     Sheet,
     SheetContent,
@@ -8,11 +8,11 @@ import {
 } from '@/components/ui/sheet'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+
 import { StatusDot, getPodStatusType } from '@/components/ui/status-dot'
 import { LogViewer } from './LogViewer'
 import { Terminal } from './Terminal'
-import { YamlEditorDialog } from '@/components/YamlEditorDialog'
+
 
 import { usePodDetail } from '@/hooks'
 import { useQueryClient } from '@tanstack/react-query'
@@ -26,7 +26,7 @@ interface PodDetailSheetProps {
 
 export function PodDetailSheet({ pod, open, onOpenChange }: PodDetailSheetProps) {
     const [activeTab, setActiveTab] = useState('overview')
-    const [yamlEditorOpen, setYamlEditorOpen] = useState(false)
+
 
     const queryClient = useQueryClient()
 
@@ -49,7 +49,13 @@ export function PodDetailSheet({ pod, open, onOpenChange }: PodDetailSheetProps)
             <Sheet open={open} onOpenChange={onOpenChange}>
                 <SheetContent side="right" className="flex w-[700px] flex-col p-0 sm:max-w-[700px]">
                     {/* Header */}
-                    <SheetHeader className="border-b border-border px-6 py-4">
+                    <SheetHeader
+                        className="border-b border-border px-6 py-4"
+                        resourceKind="pod"
+                        resourceName={pod.name}
+                        namespace={pod.namespace}
+                        onYamlSuccess={handleYamlSuccess}
+                    >
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <Box className="h-5 w-5 text-muted-foreground" />
@@ -62,16 +68,7 @@ export function PodDetailSheet({ pod, open, onOpenChange }: PodDetailSheetProps)
                                     </p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 mr-8">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setYamlEditorOpen(true)}
-                                    className="gap-2"
-                                >
-                                    <FileCode className="h-4 w-4" />
-                                    Edit YAML
-                                </Button>
+                            <div className="flex items-center gap-2">
                                 <StatusDot
                                     status={getPodStatusType(pod.status)}
                                     label={pod.status}
@@ -204,18 +201,6 @@ export function PodDetailSheet({ pod, open, onOpenChange }: PodDetailSheetProps)
                     </Tabs>
                 </SheetContent>
             </Sheet>
-
-            {/* YAML Editor Dialog */}
-            <YamlEditorDialog
-                open={yamlEditorOpen}
-                onOpenChange={setYamlEditorOpen}
-                resourceType="pod"
-                namespace={pod.namespace}
-                name={pod.name}
-                onSuccess={handleYamlSuccess}
-            />
-
-
         </>
     )
 }

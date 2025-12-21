@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { RefreshCw, AlertCircle, Network } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useIngresses } from '@/hooks'
@@ -12,6 +13,12 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet'
 import type { IngressInfo } from '@/api'
 
 export function IngressesPage() {
@@ -20,8 +27,16 @@ export function IngressesPage() {
     const namespace = selectedNamespace === 'all' ? '' : selectedNamespace
     const { data, isLoading, isError, isFetching } = useIngresses(namespace)
 
+    const [selectedIngress, setSelectedIngress] = useState<IngressInfo | null>(null)
+    const [sheetOpen, setSheetOpen] = useState(false)
+
     const handleRefresh = () => {
         queryClient.invalidateQueries({ queryKey: ['ingresses', namespace] })
+    }
+
+    const handleRowClick = (ing: IngressInfo) => {
+        setSelectedIngress(ing)
+        setSheetOpen(true)
     }
 
     return (
@@ -63,13 +78,75 @@ export function IngressesPage() {
             )}
 
             {!isLoading && !isError && data && (
-                <IngressesTable ingresses={data.ingresses} />
+                <IngressesTable
+                    ingresses={data.ingresses}
+                    onRowClick={handleRowClick}
+                />
             )}
+
+            {/* Detail Sheet */}
+            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+                <SheetContent side="right" className="flex w-[700px] flex-col p-0 sm:max-w-[700px]">
+                    {selectedIngress && (
+                        <>
+                            <SheetHeader
+                                className="border-b border-border px-6 py-4"
+                                resourceKind="ingresses"
+                                resourceName={selectedIngress.name}
+                                namespace={selectedIngress.namespace}
+                                onYamlSuccess={handleRefresh}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Network className="h-5 w-5 text-muted-foreground" />
+                                    <div>
+                                        <SheetTitle className="font-mono text-base">
+                                            {selectedIngress.name}
+                                        </SheetTitle>
+                                        <p className="text-xs text-muted-foreground">
+                                            {selectedIngress.namespace}
+                                        </p>
+                                    </div>
+                                </div>
+                            </SheetHeader>
+
+                            <div className="p-6">
+                                <div className="rounded-md bg-muted/30 p-4 space-y-4">
+                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                            <span className="text-muted-foreground">Class</span>
+                                            <div>
+                                                {selectedIngress.class ? (
+                                                    <Badge variant="secondary">{selectedIngress.class}</Badge>
+                                                ) : (
+                                                    <span className="text-muted-foreground">-</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Age</span>
+                                            <p>{selectedIngress.age}</p>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <span className="text-muted-foreground text-sm block mb-2">Hosts</span>
+                                        <div className="space-y-1">
+                                            {selectedIngress.hosts.map((host, i) => (
+                                                <div key={i} className="font-mono text-sm">{host}</div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </SheetContent>
+            </Sheet>
         </div>
     )
 }
 
-function IngressesTable({ ingresses }: { ingresses: IngressInfo[] }) {
+function IngressesTable({ ingresses, onRowClick }: { ingresses: IngressInfo[], onRowClick: (ing: IngressInfo) => void }) {
     if (ingresses.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -94,7 +171,11 @@ function IngressesTable({ ingresses }: { ingresses: IngressInfo[] }) {
                 </TableHeader>
                 <TableBody>
                     {ingresses.map((ing) => (
-                        <TableRow key={`${ing.namespace}/${ing.name}`}>
+                        <TableRow
+                            key={`${ing.namespace}/${ing.name}`}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => onRowClick(ing)}
+                        >
                             <TableCell className="font-mono text-sm font-medium">{ing.name}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">{ing.namespace}</TableCell>
                             <TableCell>

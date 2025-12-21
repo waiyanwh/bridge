@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { RefreshCw, AlertCircle, Link } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRoleBindings } from '@/hooks'
@@ -12,6 +13,12 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet'
 import type { RoleBindingInfo } from '@/api'
 
 export function RoleBindingsPage() {
@@ -20,8 +27,16 @@ export function RoleBindingsPage() {
     const namespace = selectedNamespace === 'all' ? '' : selectedNamespace
     const { data, isLoading, isError, isFetching } = useRoleBindings(namespace)
 
+    const [selectedRB, setSelectedRB] = useState<RoleBindingInfo | null>(null)
+    const [sheetOpen, setSheetOpen] = useState(false)
+
     const handleRefresh = () => {
         queryClient.invalidateQueries({ queryKey: ['rolebindings', namespace] })
+    }
+
+    const handleRowClick = (rb: RoleBindingInfo) => {
+        setSelectedRB(rb)
+        setSheetOpen(true)
     }
 
     return (
@@ -63,13 +78,76 @@ export function RoleBindingsPage() {
             )}
 
             {!isLoading && !isError && data && (
-                <RoleBindingsTable roleBindings={data.roleBindings} />
+                <RoleBindingsTable
+                    roleBindings={data.roleBindings}
+                    onRowClick={handleRowClick}
+                />
             )}
+
+            {/* Detail Sheet */}
+            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+                <SheetContent side="right" className="flex w-[700px] flex-col p-0 sm:max-w-[700px]">
+                    {selectedRB && (
+                        <>
+                            <SheetHeader
+                                className="border-b border-border px-6 py-4"
+                                resourceKind="rolebindings"
+                                resourceName={selectedRB.name}
+                                namespace={selectedRB.namespace}
+                                onYamlSuccess={handleRefresh}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Link className="h-5 w-5 text-muted-foreground" />
+                                    <div>
+                                        <SheetTitle className="font-mono text-base">
+                                            {selectedRB.name}
+                                        </SheetTitle>
+                                        <p className="text-xs text-muted-foreground">
+                                            {selectedRB.namespace}
+                                        </p>
+                                    </div>
+                                </div>
+                            </SheetHeader>
+
+                            <div className="p-6">
+                                <div className="rounded-md bg-muted/30 p-4 space-y-4">
+                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                            <span className="text-muted-foreground">Role</span>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <Badge variant="secondary" className="text-xs">
+                                                    {selectedRB.roleKind}
+                                                </Badge>
+                                                <span className="font-mono text-blue-400">{selectedRB.roleRef}</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Age</span>
+                                            <p>{selectedRB.age}</p>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <span className="text-muted-foreground text-sm block mb-2">Subjects</span>
+                                        <div className="flex flex-wrap gap-2">
+                                            {selectedRB.subjects.map((subject, i) => (
+                                                <Badge key={i} variant="outline" className="font-mono text-xs">
+                                                    {subject}
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </SheetContent>
+            </Sheet>
         </div>
     )
 }
 
-function RoleBindingsTable({ roleBindings }: { roleBindings: RoleBindingInfo[] }) {
+function RoleBindingsTable({ roleBindings, onRowClick }: { roleBindings: RoleBindingInfo[], onRowClick: (rb: RoleBindingInfo) => void }) {
     if (roleBindings.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -93,7 +171,11 @@ function RoleBindingsTable({ roleBindings }: { roleBindings: RoleBindingInfo[] }
                 </TableHeader>
                 <TableBody>
                     {roleBindings.map((rb) => (
-                        <TableRow key={`${rb.namespace}/${rb.name}`}>
+                        <TableRow
+                            key={`${rb.namespace}/${rb.name}`}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => onRowClick(rb)}
+                        >
                             <TableCell className="font-mono text-sm font-medium">{rb.name}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">{rb.namespace}</TableCell>
                             <TableCell>

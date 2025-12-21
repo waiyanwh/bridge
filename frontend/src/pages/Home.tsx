@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import {
     Users,
     Clock,
-    Layers,
+
     Shield,
     ExternalLink,
     BookOpen,
@@ -14,8 +14,10 @@ import {
     AlertTriangle,
     Activity,
     Box,
+    Cpu,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { ResourceGauge } from '@/components/dashboard/ResourceGauge'
 
 const API_BASE = '/api/v1'
 
@@ -32,10 +34,18 @@ interface AccessStats {
     permanent: number
 }
 
+interface ResourceUsage {
+    usage: string
+    capacity: string
+    percentage: number
+}
+
 interface DashboardStats {
     clusterHealth: ClusterHealth
     namespaceCount: number
     accessStats: AccessStats
+    cpu?: ResourceUsage
+    memory?: ResourceUsage
 }
 
 export function Home() {
@@ -101,24 +111,56 @@ export function Home() {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Cluster Health */}
-                <div className="rounded-lg border bg-card p-5 space-y-3">
+                {/* Cluster Health & Resources */}
+                <div className="rounded-lg border bg-card p-4 space-y-3 col-span-1 lg:col-span-2">
                     <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-muted-foreground">Cluster Health</span>
+                        <span className="text-sm font-medium text-muted-foreground">Cluster Status</span>
                         <Server className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <div className={`h-3 w-3 rounded-full ${isHealthy ? 'bg-green-500' : 'bg-amber-500'}`} />
-                            <div className={`absolute inset-0 h-3 w-3 rounded-full ${isHealthy ? 'bg-green-500' : 'bg-amber-500'} animate-ping opacity-75`} />
+
+                    <div className="grid grid-cols-2 gap-4">
+                        {/* Health Status */}
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-3">
+                                <div className="relative">
+                                    <div className={`h-3 w-3 rounded-full ${isHealthy ? 'bg-green-500' : 'bg-amber-500'}`} />
+                                    <div className={`absolute inset-0 h-3 w-3 rounded-full ${isHealthy ? 'bg-green-500' : 'bg-amber-500'} animate-ping opacity-75`} />
+                                </div>
+                                <span className={`text-2xl font-bold ${isHealthy ? 'text-green-400' : 'text-amber-400'}`}>
+                                    {clusterHealth.status}
+                                </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                {clusterHealth.readyNodes}/{clusterHealth.totalNodes} nodes ready
+                            </p>
                         </div>
-                        <span className={`text-2xl font-bold ${isHealthy ? 'text-green-400' : 'text-amber-400'}`}>
-                            {clusterHealth.status}
-                        </span>
+
+                        {/* Resource Gauges */}
+                        <div className="flex justify-end gap-2 border-l pl-4 border-white/5">
+                            {stats?.cpu && stats?.memory ? (
+                                <>
+                                    <ResourceGauge
+                                        label="CPU"
+                                        value={stats.cpu.percentage}
+                                        usage={stats.cpu.usage}
+                                        capacity={stats.cpu.capacity}
+                                    />
+                                    <ResourceGauge
+                                        label="Memory"
+                                        value={stats.memory.percentage}
+                                        usage={stats.memory.usage}
+                                        capacity={stats.memory.capacity}
+                                    />
+                                </>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center text-center text-muted-foreground/50 text-xs h-full w-full">
+                                    <Cpu className="h-6 w-6 mb-1 opacity-50" />
+                                    <span>Metrics not available</span>
+                                    {/* <span className="text-[10px] opacity-40">(Install Metrics Server)</span> */}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                        {clusterHealth.readyNodes}/{clusterHealth.totalNodes} nodes ready
-                    </p>
                 </div>
 
                 {/* Active Access */}
@@ -153,20 +195,6 @@ export function Home() {
                     </div>
                     <p className="text-xs text-muted-foreground">
                         Tokens expiring within 24 hours
-                    </p>
-                </div>
-
-                {/* Namespaces */}
-                <div className="rounded-lg border bg-card p-5 space-y-3">
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-muted-foreground">Namespaces</span>
-                        <Layers className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <span className="text-3xl font-bold">{namespaceCount}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                        Available namespaces
                     </p>
                 </div>
             </div>

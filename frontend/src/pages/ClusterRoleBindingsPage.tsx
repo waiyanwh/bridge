@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { RefreshCw, AlertCircle, Link } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useClusterRoleBindings } from '@/hooks'
@@ -11,14 +12,28 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet'
 import type { ClusterRoleBindingInfo } from '@/api'
 
 export function ClusterRoleBindingsPage() {
     const queryClient = useQueryClient()
     const { data, isLoading, isError, isFetching } = useClusterRoleBindings()
 
+    const [selectedCRB, setSelectedCRB] = useState<ClusterRoleBindingInfo | null>(null)
+    const [sheetOpen, setSheetOpen] = useState(false)
+
     const handleRefresh = () => {
         queryClient.invalidateQueries({ queryKey: ['clusterrolebindings'] })
+    }
+
+    const handleRowClick = (crb: ClusterRoleBindingInfo) => {
+        setSelectedCRB(crb)
+        setSheetOpen(true)
     }
 
     return (
@@ -58,13 +73,76 @@ export function ClusterRoleBindingsPage() {
             )}
 
             {!isLoading && !isError && data && (
-                <ClusterRoleBindingsTable clusterRoleBindings={data.clusterRoleBindings} />
+                <ClusterRoleBindingsTable
+                    clusterRoleBindings={data.clusterRoleBindings}
+                    onRowClick={handleRowClick}
+                />
             )}
+
+            {/* Detail Sheet */}
+            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+                <SheetContent side="right" className="flex w-[700px] flex-col p-0 sm:max-w-[700px]">
+                    {selectedCRB && (
+                        <>
+                            <SheetHeader
+                                className="border-b border-border px-6 py-4"
+                                resourceKind="clusterrolebindings"
+                                resourceName={selectedCRB.name}
+                                namespace="" // Cluster-scoped
+                                onYamlSuccess={handleRefresh}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Link className="h-5 w-5 text-muted-foreground" />
+                                    <div>
+                                        <SheetTitle className="font-mono text-base">
+                                            {selectedCRB.name}
+                                        </SheetTitle>
+                                        <p className="text-xs text-muted-foreground">
+                                            Cluster Scoped
+                                        </p>
+                                    </div>
+                                </div>
+                            </SheetHeader>
+
+                            <div className="p-6">
+                                <div className="rounded-md bg-muted/30 p-4 space-y-4">
+                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                            <span className="text-muted-foreground">Role</span>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <Badge variant="secondary" className="text-xs">
+                                                    {selectedCRB.roleKind}
+                                                </Badge>
+                                                <span className="font-mono text-blue-400">{selectedCRB.roleRef}</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Age</span>
+                                            <p>{selectedCRB.age}</p>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <span className="text-muted-foreground text-sm block mb-2">Subjects</span>
+                                        <div className="flex flex-wrap gap-2">
+                                            {selectedCRB.subjects.map((subject, i) => (
+                                                <Badge key={i} variant="outline" className="font-mono text-xs">
+                                                    {subject}
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </SheetContent>
+            </Sheet>
         </div>
     )
 }
 
-function ClusterRoleBindingsTable({ clusterRoleBindings }: { clusterRoleBindings: ClusterRoleBindingInfo[] }) {
+function ClusterRoleBindingsTable({ clusterRoleBindings, onRowClick }: { clusterRoleBindings: ClusterRoleBindingInfo[], onRowClick: (crb: ClusterRoleBindingInfo) => void }) {
     if (clusterRoleBindings.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -87,7 +165,11 @@ function ClusterRoleBindingsTable({ clusterRoleBindings }: { clusterRoleBindings
                 </TableHeader>
                 <TableBody>
                     {clusterRoleBindings.map((crb) => (
-                        <TableRow key={crb.name}>
+                        <TableRow
+                            key={crb.name}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => onRowClick(crb)}
+                        >
                             <TableCell className="font-mono text-sm font-medium">{crb.name}</TableCell>
                             <TableCell>
                                 <div className="flex items-center gap-2">

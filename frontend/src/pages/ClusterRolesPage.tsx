@@ -80,7 +80,13 @@ export function ClusterRolesPage() {
                 <SheetContent side="right" className="flex w-[500px] flex-col p-0 sm:max-w-[500px]">
                     {selectedRole && (
                         <>
-                            <SheetHeader className="border-b border-border px-6 py-4">
+                            <SheetHeader
+                                className="border-b border-border px-6 py-4"
+                                resourceKind="clusterroles"
+                                resourceName={selectedRole.name}
+                                namespace="" // Cluster-scoped
+                                onYamlSuccess={handleRefresh}
+                            >
                                 <div className="flex items-center gap-3">
                                     <Shield className="h-5 w-5 text-muted-foreground" />
                                     <div>

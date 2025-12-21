@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { RefreshCw, AlertCircle, Activity } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useHPAs } from '@/hooks'
@@ -12,6 +13,12 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet'
 import type { HPAInfo } from '@/api'
 
 export function HPAPage() {
@@ -20,8 +27,16 @@ export function HPAPage() {
     const namespace = selectedNamespace === 'all' ? '' : selectedNamespace
     const { data, isLoading, isError, isFetching } = useHPAs(namespace)
 
+    const [selectedHPA, setSelectedHPA] = useState<HPAInfo | null>(null)
+    const [sheetOpen, setSheetOpen] = useState(false)
+
     const handleRefresh = () => {
         queryClient.invalidateQueries({ queryKey: ['hpas', namespace] })
+    }
+
+    const handleRowClick = (hpa: HPAInfo) => {
+        setSelectedHPA(hpa)
+        setSheetOpen(true)
     }
 
     return (
@@ -63,13 +78,88 @@ export function HPAPage() {
             )}
 
             {!isLoading && !isError && data && (
-                <HPATable hpas={data.hpas} />
+                <HPATable
+                    hpas={data.hpas}
+                    onRowClick={handleRowClick}
+                />
             )}
+
+            {/* Detail Sheet */}
+            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+                <SheetContent side="right" className="flex w-[700px] flex-col p-0 sm:max-w-[700px]">
+                    {selectedHPA && (
+                        <>
+                            <SheetHeader
+                                className="border-b border-border px-6 py-4"
+                                resourceKind="horizontalpodautoscalers"
+                                resourceName={selectedHPA.name}
+                                namespace={selectedHPA.namespace}
+                                onYamlSuccess={handleRefresh}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Activity className="h-5 w-5 text-muted-foreground" />
+                                    <div>
+                                        <SheetTitle className="font-mono text-base">
+                                            {selectedHPA.name}
+                                        </SheetTitle>
+                                        <p className="text-xs text-muted-foreground">
+                                            {selectedHPA.namespace}
+                                        </p>
+                                    </div>
+                                </div>
+                            </SheetHeader>
+
+                            <div className="p-6">
+                                <div className="rounded-md bg-muted/30 p-4 space-y-4">
+                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                            <span className="text-muted-foreground">Target</span>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <Badge variant="secondary" className="text-xs">
+                                                    {selectedHPA.targetKind}
+                                                </Badge>
+                                                <span className="font-mono text-xs text-blue-400">{selectedHPA.targetRef}</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Age</span>
+                                            <p>{selectedHPA.age}</p>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <h4 className="text-sm font-medium mb-2 text-muted-foreground">Metrics</h4>
+                                        <div className="grid grid-cols-3 gap-4 text-sm">
+                                            <div>
+                                                <span className="text-muted-foreground text-xs">Replicas (Cur/Des)</span>
+                                                <p className="font-mono">
+                                                    <span className={selectedHPA.currentReplicas === selectedHPA.desiredReplicas ? 'text-green-400' : 'text-amber-400'}>
+                                                        {selectedHPA.currentReplicas}
+                                                    </span>
+                                                    <span className="text-muted-foreground"> / {selectedHPA.desiredReplicas}</span>
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <span className="text-muted-foreground text-xs">Min / Max</span>
+                                                <p className="font-mono">{selectedHPA.minReplicas} / {selectedHPA.maxReplicas}</p>
+                                            </div>
+                                            <div>
+                                                <span className="text-muted-foreground text-xs">Utilization</span>
+                                                <p className="font-mono">{selectedHPA.utilization}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </SheetContent>
+            </Sheet>
         </div>
     )
 }
 
-function HPATable({ hpas }: { hpas: HPAInfo[] }) {
+function HPATable({ hpas, onRowClick }: { hpas: HPAInfo[], onRowClick: (hpa: HPAInfo) => void }) {
     if (hpas.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -95,7 +185,11 @@ function HPATable({ hpas }: { hpas: HPAInfo[] }) {
                 </TableHeader>
                 <TableBody>
                     {hpas.map((hpa) => (
-                        <TableRow key={`${hpa.namespace}/${hpa.name}`}>
+                        <TableRow
+                            key={`${hpa.namespace}/${hpa.name}`}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => onRowClick(hpa)}
+                        >
                             <TableCell className="font-mono text-sm font-medium">{hpa.name}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">{hpa.namespace}</TableCell>
                             <TableCell>
