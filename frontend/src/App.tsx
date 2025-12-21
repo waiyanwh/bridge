@@ -7,6 +7,8 @@ import { Toaster } from '@/components/ui/toast'
 import { SettingsProvider } from '@/context/SettingsContext'
 import { GlobalQueryConfig } from '@/components/GlobalQueryConfig'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { NamespacesPage } from '@/pages/NamespacesPage'
+import { NamespaceDetailPage } from '@/pages/NamespaceDetailPage'
 import {
     WorkloadsPage,
     NodesPage,
@@ -93,6 +95,8 @@ function AppRoutes() {
 
                     {/* Cluster routes */}
                     <Route path="/nodes" element={<NodesPage />} />
+                    <Route path="/namespaces" element={<NamespacesPage />} />
+                    <Route path="/namespaces/:namespace" element={<NamespaceDetailPage />} />
                     <Route path="/events" element={<EventsPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
 

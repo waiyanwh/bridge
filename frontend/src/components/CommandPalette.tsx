@@ -2,8 +2,10 @@ import * as React from 'react'
 import { useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Command as CommandPrimitive } from 'cmdk'
-import { Search, Box, Server, Layers, Settings, X, HardDrive, FileText, Lock, Database, Network } from 'lucide-react'
+import { Search, Box, Server, Layers, Settings, X, HardDrive, FileText, Lock, Database, Network, Circle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useNamespaces } from '@/hooks'
+import { useNamespaceStore } from '@/store'
 
 interface CommandPaletteProps {
     open: boolean
@@ -36,6 +38,10 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     const navigate = useNavigate()
     const location = useLocation()
 
+    // Data for namespaces
+    const { data: nsData } = useNamespaces()
+    const { setNamespace } = useNamespaceStore()
+
     // Focus input when palette opens
     useEffect(() => {
         if (open) {
@@ -67,6 +73,13 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         setSearch('')
         navigate(path)
     }, [onOpenChange, navigate])
+
+    const handleNamespaceSelect = useCallback((ns: string) => {
+        onOpenChange(false)
+        setSearch('')
+        setNamespace(ns)
+        navigate(`/namespaces/${ns}`)
+    }, [onOpenChange, setNamespace, navigate])
 
     if (!open) return null
 
@@ -132,6 +145,29 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                                 </CommandPrimitive.Item>
                             ))}
                         </CommandPrimitive.Group>
+
+                        {nsData && nsData.namespaces.length > 0 && (
+                            <>
+                                <CommandPrimitive.Separator className="my-1 h-px bg-border" />
+                                <CommandPrimitive.Group heading="Switch Namespace" className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                                    {nsData.namespaces.map((ns) => (
+                                        <CommandPrimitive.Item
+                                            key={ns}
+                                            value={`namespace ${ns}`}
+                                            onSelect={() => handleNamespaceSelect(ns)}
+                                            className={cn(
+                                                'relative flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-2 text-sm outline-none',
+                                                'data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground',
+                                                'hover:bg-accent hover:text-accent-foreground'
+                                            )}
+                                        >
+                                            <Circle className="h-3 w-3" />
+                                            <span>{ns}</span>
+                                        </CommandPrimitive.Item>
+                                    ))}
+                                </CommandPrimitive.Group>
+                            </>
+                        )}
                     </CommandPrimitive.List>
 
                     {/* Footer */}
@@ -154,3 +190,4 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         </div>
     )
 }
+

@@ -1,0 +1,106 @@
+package handlers
+
+import (
+	"context"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+)
+
+// type ResourceQuotaInfo struct {
+// 	Name      string `json:"name"`
+// 	Namespace string `json:"namespace"`
+// 	// Hard limits
+// 	HardCPU    string `json:"hardCPU"`
+// 	HardMemory string `json:"hardMemory"`
+// 	HardPods   string `json:"hardPods"`
+// 	// Used
+// 	UsedCPU    string `json:"usedCPU"`
+// 	UsedMemory string `json:"usedMemory"`
+// 	UsedPods   string `json:"usedPods"`
+// 	// Percentages (calculated)
+// 	CpuUsagePercent    float64 `json:"cpuUsagePercent"`
+// 	MemoryUsagePercent float64 `json:"memoryUsagePercent"`
+// 	PodsUsagePercent   float64 `json:"podsUsagePercent"`
+// }
+
+// type ResourceQuotasResponse struct {
+// 	Quotas []ResourceQuotaInfo `json:"quotas"`
+// }
+
+func GetResourceQuotas(c *gin.Context) {
+	clientset, exists := c.MustGet("clientset").(*kubernetes.Clientset)
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "kubernetes client not found"})
+		return
+	}
+
+	namespace := c.Param("namespace")
+
+	quotas, err := clientset.CoreV1().ResourceQuotas(namespace).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	var quotaInfos []ResourceQuotaInfo
+	for _, q := range quotas.Items {
+		info := ResourceQuotaInfo{
+			Name:      q.Name,
+			Namespace: q.Namespace,
+		}
+
+		// Hard limits
+		if q.Status.Hard != nil {
+			if val, ok := q.Status.Hard[corev1.ResourceCPU]; ok {
+				info.HardCPU = val.String()
+			}
+			if val, ok := q.Status.Hard[corev1.ResourceMemory]; ok {
+				info.HardMemory = val.String()
+			}
+			if val, ok := q.Status.Hard[corev1.ResourcePods]; ok {
+				info.HardPods = val.String()
+			}
+		}
+
+		// Used
+		if q.Status.Used != nil {
+			// CPU
+			if hard, ok := q.Status.Hard[corev1.ResourceCPU]; ok {
+				if used, ok := q.Status.Used[corev1.ResourceCPU]; ok {
+					info.UsedCPU = used.String()
+					if hard.MilliValue() > 0 {
+						info.CpuUsagePercent = float64(used.MilliValue()) / float64(hard.MilliValue()) * 100
+					}
+				}
+			}
+
+			// Memory
+			if hard, ok := q.Status.Hard[corev1.ResourceMemory]; ok {
+				if used, ok := q.Status.Used[corev1.ResourceMemory]; ok {
+					info.UsedMemory = used.String()
+					if hard.Value() > 0 {
+						info.MemoryUsagePercent = float64(used.Value()) / float64(hard.Value()) * 100
+					}
+				}
+			}
+
+			// Pods
+			if hard, ok := q.Status.Hard[corev1.ResourcePods]; ok {
+				if used, ok := q.Status.Used[corev1.ResourcePods]; ok {
+					info.UsedPods = used.String()
+					if hard.Value() > 0 {
+						info.PodsUsagePercent = float64(used.Value()) / float64(hard.Value()) * 100
+					}
+				}
+			}
+		}
+
+		quotaInfos = append(quotaInfos, info)
+	}
+
+	c.JSON(http.StatusOK, ResourceQuotasResponse{Quotas: quotaInfos})
+}

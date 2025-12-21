@@ -22,6 +22,7 @@ import {
     ShipWheel,
     Workflow,
     Home,
+    LayoutGrid,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store'
@@ -96,6 +97,7 @@ const navItems: NavItem[] = [
         ]
     },
     { icon: HardDrive, label: 'Nodes', href: '/nodes' },
+    { icon: LayoutGrid, label: 'Namespaces', href: '/namespaces' },
     { icon: Bell, label: 'Events', href: '/events' },
 ]
 

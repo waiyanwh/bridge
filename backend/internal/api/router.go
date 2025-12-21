@@ -135,6 +135,9 @@ func SetupRoutes(router *gin.Engine, k8sService *k8s.Service) {
 
 		// Dashboard endpoints
 		v1.GET("/dashboard/stats", dashboardHandler.GetStats)
+
+		// Resource Quotas
+		v1.GET("/resourcequotas/:namespace", namespaceHandler.GetResourceQuotas)
 	}
 
 	// Health check endpoint
