@@ -1,18 +1,9 @@
 import { useState } from 'react'
-import { RefreshCw, AlertCircle, Layers, Cable } from 'lucide-react'
+import { RefreshCw, AlertCircle } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useServices } from '@/hooks'
 import { useNamespaceStore } from '@/store'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table'
 import { ServiceDetailSheet } from '@/components/ServiceDetailSheet'
 import { ServicesTable } from '@/components/services/ServicesTable'
 import { ForwardPortDialog } from '@/components/tunnels'
