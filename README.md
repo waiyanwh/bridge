@@ -125,15 +125,24 @@ ls -la bin/
 
 ### Mission Control Dashboard
 Real-time overview of cluster health, active access grants, and quick actions.
+![Dashboard](docs/screenshots/dashboard.png)
+
 
 ### Team Access Control
 Generate scoped kubeconfigs with specific permissions and expiration times.
+![Access Control](docs/screenshots/access-control.png)
 
 ### Topology Map
 Interactive visualization of your cluster's network topology.
+![Topology Map](docs/screenshots/topology-map.png)
 
 ### Workload Explorer
 Browse and manage pods, deployments, and other workloads.
+![Workload Explorer](docs/screenshots/workload-explorer.png)
+
+### Real-time Logs
+Stream pod logs via WebSocket.
+![Logs](docs/screenshots/logs.png)
 
 </details>
 
