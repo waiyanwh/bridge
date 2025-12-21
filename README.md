@@ -134,11 +134,11 @@ Generate scoped kubeconfigs with specific permissions and expiration times.
 
 ### Topology Map
 Interactive visualization of your cluster's network topology.
-![Topology Map](docs/screenshots/topology-map.png)
+![Topology Map](docs/screenshots/topology.png)
 
 ### Workload Explorer
 Browse and manage pods, deployments, and other workloads.
-![Workload Explorer](docs/screenshots/workload-explorer.png)
+![Workload Explorer](docs/screenshots/workload.png)
 
 ### Real-time Logs
 Stream pod logs via WebSocket.
