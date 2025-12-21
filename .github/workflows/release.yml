@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  GO_VERSION: '1.21'
+  NODE_VERSION: '20'
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: backend/go.sum
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Build Frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+          echo "✅ Frontend built successfully"
+          ls -la dist/
+
+      - name: Copy Frontend to Backend
+        run: |
+          rm -rf backend/dist
+          cp -r frontend/dist backend/dist
+          echo "✅ Frontend assets embedded"
+
+      - name: Build Binaries
+        env:
+          CGO_ENABLED: 0
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          mkdir -p bin
+          cd backend
+          
+          LDFLAGS="-s -w -X main.Version=${VERSION}"
+          
+          echo "🐧 Building for Linux (amd64)..."
+          GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o ../bin/bridge-linux-amd64 .
+          
+          echo "🐧 Building for Linux (arm64)..."
+          GOOS=linux GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o ../bin/bridge-linux-arm64 .
+          
+          echo "🍎 Building for macOS (amd64)..."
+          GOOS=darwin GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o ../bin/bridge-darwin-amd64 .
+          
+          echo "🍎 Building for macOS (arm64)..."
+          GOOS=darwin GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o ../bin/bridge-darwin-arm64 .
+          
+          echo "🪟 Building for Windows (amd64)..."
+          GOOS=windows GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o ../bin/bridge-windows-amd64.exe .
+          
+          echo "✅ All binaries built successfully"
+          ls -lh ../bin/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: bin/*
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref, '-rc') || contains(github.ref, '-beta') || contains(github.ref, '-alpha') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
