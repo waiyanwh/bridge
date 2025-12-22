@@ -23,7 +23,7 @@ func SetupRoutes(router *gin.Engine, k8sService *k8s.Service) {
 	storageHandler := handlers.NewStorageHandler(k8sService)
 	rbacHandler := handlers.NewRBACHandler(k8sService)
 	clusterHandler := handlers.NewClusterHandler(k8sService)
-	helmHandler := handlers.NewHelmHandler()
+	helmHandler := handlers.NewHelmHandler(k8sService.GetManager())
 	accessHandler := handlers.NewAccessHandler(k8sService)
 	contextHandler := handlers.NewContextHandler(k8sService)
 	topologyHandler := handlers.NewTopologyHandler(k8sService)
