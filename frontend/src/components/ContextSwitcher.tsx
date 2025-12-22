@@ -15,6 +15,7 @@ interface ContextInfo {
 interface ContextState {
     contexts: ContextInfo[]
     currentContext: string
+    currentCluster: string
     currentServer: string
     isLoading: boolean
     isSwitching: boolean
@@ -25,6 +26,7 @@ export function ContextSwitcher({ isExpanded }: { isExpanded: boolean }) {
     const [state, setState] = useState<ContextState>({
         contexts: [],
         currentContext: '',
+        currentCluster: '',
         currentServer: '',
         isLoading: true,
         isSwitching: false,
@@ -41,6 +43,7 @@ export function ContextSwitcher({ isExpanded }: { isExpanded: boolean }) {
                 ...prev,
                 contexts: data.contexts || [],
                 currentContext: data.currentContext,
+                currentCluster: data.currentCluster,
                 currentServer: data.currentServer,
                 isLoading: false,
                 error: null,
@@ -127,9 +130,9 @@ export function ContextSwitcher({ isExpanded }: { isExpanded: boolean }) {
         )
     }
 
-    // Display cluster name from context or server URL
-    const displayName = state.currentContext || 'Unknown'
-    const serverShort = state.currentServer?.replace(/^https?:\/\//, '').split(':')[0] || ''
+    // Display cluster name from API (not context name)
+    const displayName = state.currentCluster || state.currentContext || 'Unknown'
+    const contextName = state.currentContext || ''
 
     return (
         <div className="relative">
@@ -159,7 +162,7 @@ export function ContextSwitcher({ isExpanded }: { isExpanded: boolean }) {
                     <>
                         <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium truncate">{displayName}</div>
-                            <div className="text-xs text-muted-foreground truncate">{serverShort}</div>
+                            <div className="text-xs text-muted-foreground truncate">{contextName}</div>
                         </div>
                         <ChevronDown className={cn(
                             "h-4 w-4 text-muted-foreground transition-transform",

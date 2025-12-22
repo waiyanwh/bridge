@@ -10,6 +10,8 @@ interface YamlEditorDialogProps {
     resourceType: string
     namespace: string
     name: string
+    group?: string
+    version?: string
     onSuccess?: () => void
 }
 
@@ -19,6 +21,8 @@ export function YamlEditorDialog({
     resourceType,
     namespace,
     name,
+    group,
+    version,
     onSuccess,
 }: YamlEditorDialogProps) {
     const [yaml, setYaml] = useState<string>('')
@@ -38,7 +42,7 @@ export function YamlEditorDialog({
         setOriginalYaml('')
 
         try {
-            const data = await fetchResourceYAML(resourceType, namespace, name)
+            const data = await fetchResourceYAML(resourceType, namespace, name, group, version)
             setYaml(data.yaml)
             setOriginalYaml(data.yaml)
         } catch (err) {
@@ -46,7 +50,7 @@ export function YamlEditorDialog({
         } finally {
             setIsLoading(false)
         }
-    }, [resourceType, namespace, name])
+    }, [resourceType, namespace, name, group, version])
 
     // Load when opened - using useEffect correctly
     useEffect(() => {
@@ -71,7 +75,7 @@ export function YamlEditorDialog({
         setIsSaving(true)
         setError(null)
         try {
-            await applyResourceYAML(resourceType, namespace, name, yaml)
+            await applyResourceYAML(resourceType, namespace, name, yaml, group, version)
             setOriginalYaml(yaml)
             setShowConfirm(false)
             onSuccess?.()
@@ -98,8 +102,8 @@ export function YamlEditorDialog({
 
             {/* Dialog */}
             <div className="fixed inset-4 flex flex-col rounded-lg border border-border bg-background shadow-2xl md:inset-8 lg:inset-12">
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                {/* Header - z-50 to stay above editor */}
+                <div className="relative z-50 flex items-center justify-between border-b border-border px-4 py-3 bg-background">
                     <div className="flex items-center gap-3">
                         <h2 className="text-lg font-semibold">Edit YAML</h2>
                         <span className="rounded bg-muted px-2 py-0.5 font-mono text-sm">
@@ -121,8 +125,8 @@ export function YamlEditorDialog({
                     </Button>
                 </div>
 
-                {/* Editor */}
-                <div className="flex-1 overflow-hidden">
+                {/* Editor - z-0 to stay below header/footer */}
+                <div className="relative z-0 flex-1 overflow-hidden">
                     {isLoading ? (
                         <div className="flex h-full items-center justify-center">
                             <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -164,8 +168,8 @@ export function YamlEditorDialog({
                     )}
                 </div>
 
-                {/* Footer */}
-                <div className="flex items-center justify-between border-t border-border px-4 py-3">
+                {/* Footer - z-50 to stay above editor */}
+                <div className="relative z-50 flex items-center justify-between border-t border-border px-4 py-3 bg-background">
                     {/* Error message */}
                     <div className="flex-1">
                         {error && yaml && (

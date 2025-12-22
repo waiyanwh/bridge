@@ -34,7 +34,9 @@ import {
     HelmPage,
     TeamAccessPage,
     TopologyPage,
-    Home
+    Home,
+    CRDListPage,
+    CRDExplorerPage
 } from '@/pages'
 
 // Create a query client
@@ -99,6 +101,10 @@ function AppRoutes() {
                     <Route path="/namespaces/:namespace" element={<NamespaceDetailPage />} />
                     <Route path="/events" element={<EventsPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
+
+                    {/* CRD routes */}
+                    <Route path="/crds" element={<CRDExplorerPage />} />
+                    <Route path="/crds/:group/:version/:resource" element={<CRDListPage />} />
 
                     {/* Catch-all redirect to pods */}
                     <Route path="*" element={<Navigate to="/pods" replace />} />

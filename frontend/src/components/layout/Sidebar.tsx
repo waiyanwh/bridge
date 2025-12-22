@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
     Box,
@@ -23,6 +23,7 @@ import {
     Workflow,
     Home,
     LayoutGrid,
+    Puzzle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store'
@@ -33,6 +34,7 @@ interface NavItem {
     icon: React.ElementType
     label: string
     href?: string
+    action?: string // Special action identifier (e.g., 'openCRDSheet')
     children?: NavItem[]
 }
 
@@ -99,6 +101,7 @@ const navItems: NavItem[] = [
     { icon: HardDrive, label: 'Nodes', href: '/nodes' },
     { icon: LayoutGrid, label: 'Namespaces', href: '/namespaces' },
     { icon: Bell, label: 'Events', href: '/events' },
+    { icon: Puzzle, label: 'Custom Resources', href: '/crds' },
 ]
 
 // Helper to find which section contains the current path
@@ -193,7 +196,7 @@ function NavItemWithChildren({
     onToggle: () => void
 }) {
     const [floatingOpen, setFloatingOpen] = useState(false)
-    const buttonRef = React.useRef<HTMLButtonElement>(null)
+    const buttonRef = useRef<HTMLButtonElement>(null)
 
     const handleClick = () => {
         if (isSidebarExpanded) {
@@ -268,10 +271,8 @@ function NavItemWithChildren({
     )
 }
 
-import React from 'react'
-
 export function Sidebar() {
-    const { isSidebarExpanded, toggleSidebar } = useUIStore()
+    const { isSidebarExpanded, toggleSidebar, openCRDSheet } = useUIStore()
     const location = useLocation()
 
     // Compute which section should be expanded based on current route
@@ -294,6 +295,13 @@ export function Sidebar() {
                 ? prev.filter(l => l !== label)
                 : [...prev, label]
         )
+    }
+
+    // Handle action items (like opening CRD sheet)
+    const handleAction = (action: string) => {
+        if (action === 'openCRDSheet') {
+            openCRDSheet()
+        }
     }
 
     return (
@@ -345,6 +353,27 @@ export function Sidebar() {
                             isExpanded={expandedSections.includes(item.label)}
                             onToggle={() => toggleSection(item.label)}
                         />
+                    ) : item.action ? (
+                        // Action button (e.g., Custom Resources sheet opener)
+                        <button
+                            key={item.label}
+                            onClick={() => handleAction(item.action!)}
+                            className={cn(
+                                'flex items-center gap-3 rounded-md px-3 py-2.5 transition-colors',
+                                'focus:outline-none focus:ring-2 focus:ring-ring',
+                                'text-muted-foreground hover:bg-zinc-800/50 hover:text-foreground'
+                            )}
+                        >
+                            <item.icon className="h-5 w-5 shrink-0" />
+                            <span
+                                className={cn(
+                                    'text-sm font-medium whitespace-nowrap transition-opacity duration-200',
+                                    isSidebarExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none w-0'
+                                )}
+                            >
+                                {item.label}
+                            </span>
+                        </button>
                     ) : (
                         <NavLink
                             key={item.href}

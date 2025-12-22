@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { Activity, Box, Layers, Settings, RefreshCw } from 'lucide-react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { Activity, Box, Layers, Settings, RefreshCw, ChevronLeft } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { usePods, useServices, useDeployments, useEvents, useResourceQuotas } from '@/hooks'
 import { DeploymentsTable } from '@/components/deployments/DeploymentsTable'
@@ -16,6 +16,7 @@ import { Progress } from '@/components/ui/progress'
 import type { DeploymentInfo, ServiceInfo } from '@/api'
 
 export function NamespaceDetailPage() {
+    const navigate = useNavigate()
     const { namespace } = useParams<{ namespace: string }>()
     const ns = namespace || 'default'
     const queryClient = useQueryClient()
@@ -62,14 +63,24 @@ export function NamespaceDetailPage() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <h1 className="text-2xl font-semibold tracking-tight font-mono">{ns}</h1>
-                    <Badge variant="outline" className="gap-1.5">
-                        <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                        </span>
-                        Active
-                    </Badge>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => navigate('/namespaces')}
+                        className="h-8 w-8"
+                    >
+                        <ChevronLeft className="h-5 w-5" />
+                    </Button>
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-2xl font-semibold tracking-tight font-mono">{ns}</h1>
+                        <Badge variant="outline" className="gap-1.5">
+                            <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                            </span>
+                            Active
+                        </Badge>
+                    </div>
                 </div>
                 <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
                     <RefreshCw className="h-4 w-4" />

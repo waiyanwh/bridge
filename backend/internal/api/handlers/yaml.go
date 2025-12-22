@@ -49,20 +49,20 @@ type ApplyYAMLRequest struct {
 func getGVR(resourceType string) (schema.GroupVersionResource, bool) {
 	resourceMap := map[string]schema.GroupVersionResource{
 		// Workloads
-		"pods":          {Group: "", Version: "v1", Resource: "pods"},
-		"pod":           {Group: "", Version: "v1", Resource: "pods"},
-		"deployments":   {Group: "apps", Version: "v1", Resource: "deployments"},
-		"deployment":    {Group: "apps", Version: "v1", Resource: "deployments"},
-		"statefulsets":  {Group: "apps", Version: "v1", Resource: "statefulsets"},
-		"statefulset":   {Group: "apps", Version: "v1", Resource: "statefulsets"},
-		"daemonsets":    {Group: "apps", Version: "v1", Resource: "daemonsets"},
-		"daemonset":     {Group: "apps", Version: "v1", Resource: "daemonsets"},
-		"replicasets":   {Group: "apps", Version: "v1", Resource: "replicasets"},
-		"replicaset":    {Group: "apps", Version: "v1", Resource: "replicasets"},
-		"cronjobs":      {Group: "batch", Version: "v1", Resource: "cronjobs"},
-		"cronjob":       {Group: "batch", Version: "v1", Resource: "cronjobs"},
-		"jobs":          {Group: "batch", Version: "v1", Resource: "jobs"},
-		"job":           {Group: "batch", Version: "v1", Resource: "jobs"},
+		"pods":         {Group: "", Version: "v1", Resource: "pods"},
+		"pod":          {Group: "", Version: "v1", Resource: "pods"},
+		"deployments":  {Group: "apps", Version: "v1", Resource: "deployments"},
+		"deployment":   {Group: "apps", Version: "v1", Resource: "deployments"},
+		"statefulsets": {Group: "apps", Version: "v1", Resource: "statefulsets"},
+		"statefulset":  {Group: "apps", Version: "v1", Resource: "statefulsets"},
+		"daemonsets":   {Group: "apps", Version: "v1", Resource: "daemonsets"},
+		"daemonset":    {Group: "apps", Version: "v1", Resource: "daemonsets"},
+		"replicasets":  {Group: "apps", Version: "v1", Resource: "replicasets"},
+		"replicaset":   {Group: "apps", Version: "v1", Resource: "replicasets"},
+		"cronjobs":     {Group: "batch", Version: "v1", Resource: "cronjobs"},
+		"cronjob":      {Group: "batch", Version: "v1", Resource: "cronjobs"},
+		"jobs":         {Group: "batch", Version: "v1", Resource: "jobs"},
+		"job":          {Group: "batch", Version: "v1", Resource: "jobs"},
 
 		// Network
 		"services":        {Group: "", Version: "v1", Resource: "services"},
@@ -101,8 +101,8 @@ func getGVR(resourceType string) (schema.GroupVersionResource, bool) {
 		"clusterrolebinding":  {Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterrolebindings"},
 
 		// Cluster
-		"nodes":     {Group: "", Version: "v1", Resource: "nodes"},
-		"node":      {Group: "", Version: "v1", Resource: "nodes"},
+		"nodes":      {Group: "", Version: "v1", Resource: "nodes"},
+		"node":       {Group: "", Version: "v1", Resource: "nodes"},
 		"namespaces": {Group: "", Version: "v1", Resource: "namespaces"},
 		"namespace":  {Group: "", Version: "v1", Resource: "namespaces"},
 	}
@@ -137,19 +137,40 @@ func (h *YAMLHandler) GetYAML(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 
-	gvr, ok := getGVR(resourceType)
-	if !ok {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "INVALID_RESOURCE_TYPE",
-			Message: "Unsupported resource type: " + resourceType,
-		})
-		return
+	// Check for CRD group/version query params
+	group := c.Query("group")
+	version := c.Query("version")
+
+	var gvr schema.GroupVersionResource
+	var namespaced bool
+
+	if group != "" && version != "" {
+		// CRD resource - use dynamic GVR from query params
+		gvr = schema.GroupVersionResource{
+			Group:    group,
+			Version:  version,
+			Resource: resourceType,
+		}
+		// For CRDs, we need to determine if namespaced - assume namespaced if namespace provided
+		namespaced = namespace != "" && namespace != "_"
+	} else {
+		// Standard resource - use static mapping
+		var ok bool
+		gvr, ok = getGVR(resourceType)
+		if !ok {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Error:   "INVALID_RESOURCE_TYPE",
+				Message: "Unsupported resource type: " + resourceType,
+			})
+			return
+		}
+		namespaced = isNamespaced(resourceType)
 	}
 
 	var resource *unstructured.Unstructured
 	var err error
 
-	if isNamespaced(resourceType) {
+	if namespaced && namespace != "" && namespace != "_" {
 		resource, err = h.dynamicClient.Resource(gvr).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	} else {
 		resource, err = h.dynamicClient.Resource(gvr).Get(context.Background(), name, metav1.GetOptions{})
@@ -194,6 +215,10 @@ func (h *YAMLHandler) ApplyYAML(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 
+	// Check for CRD group/version query params
+	group := c.Query("group")
+	version := c.Query("version")
+
 	var req ApplyYAMLRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
@@ -203,13 +228,29 @@ func (h *YAMLHandler) ApplyYAML(c *gin.Context) {
 		return
 	}
 
-	gvr, ok := getGVR(resourceType)
-	if !ok {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "INVALID_RESOURCE_TYPE",
-			Message: "Unsupported resource type: " + resourceType,
-		})
-		return
+	var gvr schema.GroupVersionResource
+	var namespaced bool
+
+	if group != "" && version != "" {
+		// CRD resource - use dynamic GVR from query params
+		gvr = schema.GroupVersionResource{
+			Group:    group,
+			Version:  version,
+			Resource: resourceType,
+		}
+		namespaced = namespace != "" && namespace != "_"
+	} else {
+		// Standard resource - use static mapping
+		var ok bool
+		gvr, ok = getGVR(resourceType)
+		if !ok {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Error:   "INVALID_RESOURCE_TYPE",
+				Message: "Unsupported resource type: " + resourceType,
+			})
+			return
+		}
+		namespaced = isNamespaced(resourceType)
 	}
 
 	// Parse YAML to unstructured
@@ -226,7 +267,7 @@ func (h *YAMLHandler) ApplyYAML(c *gin.Context) {
 	var currentResource *unstructured.Unstructured
 	var err error
 
-	if isNamespaced(resourceType) {
+	if namespaced && namespace != "" && namespace != "_" {
 		currentResource, err = h.dynamicClient.Resource(gvr).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	} else {
 		currentResource, err = h.dynamicClient.Resource(gvr).Get(context.Background(), name, metav1.GetOptions{})
@@ -248,13 +289,15 @@ func (h *YAMLHandler) ApplyYAML(c *gin.Context) {
 	}
 	metadata["resourceVersion"] = currentResource.GetResourceVersion()
 	metadata["name"] = name
-	metadata["namespace"] = namespace
+	if namespaced {
+		metadata["namespace"] = namespace
+	}
 
 	resource := &unstructured.Unstructured{Object: obj}
 
 	// Update the resource
 	var updatedResource *unstructured.Unstructured
-	if isNamespaced(resourceType) {
+	if namespaced && namespace != "" && namespace != "_" {
 		updatedResource, err = h.dynamicClient.Resource(gvr).Namespace(namespace).Update(context.Background(), resource, metav1.UpdateOptions{})
 	} else {
 		updatedResource, err = h.dynamicClient.Resource(gvr).Update(context.Background(), resource, metav1.UpdateOptions{})
