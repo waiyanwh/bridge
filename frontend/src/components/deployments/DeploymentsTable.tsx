@@ -41,7 +41,7 @@ export function DeploymentsTable({ deployments, onRowClick }: DeploymentsTablePr
                     {deployments.map((d) => (
                         <TableRow
                             key={`${d.namespace}/${d.name}`}
-                            className="cursor-pointer hover:bg-zinc-800/50"
+                            className="cursor-pointer hover:bg-muted/50"
                             onClick={() => onRowClick(d)}
                         >
                             <TableCell className="font-mono text-sm font-medium">{d.name}</TableCell>

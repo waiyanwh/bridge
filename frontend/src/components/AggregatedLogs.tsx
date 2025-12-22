@@ -199,7 +199,7 @@ export function AggregatedLogs({ selector, namespace }: AggregatedLogsProps) {
     return (
         <div className="flex flex-col h-full">
             {/* Header */}
-            <div className="flex items-center justify-between p-3 border-b border-zinc-800 bg-zinc-900/50">
+            <div className="flex items-center justify-between p-3 border-b border-border bg-muted/50">
                 <div className="flex items-center gap-3">
                     <div className={cn(
                         "h-2 w-2 rounded-full",
@@ -247,11 +247,11 @@ export function AggregatedLogs({ selector, namespace }: AggregatedLogsProps) {
 
             {/* Pod legend */}
             {pods.length > 1 && (
-                <div className="flex flex-wrap gap-2 p-2 border-b border-zinc-800 bg-zinc-900/30">
+                <div className="flex flex-wrap gap-2 p-2 border-b border-border bg-muted/30">
                     {pods.map(pod => (
                         <span
                             key={pod}
-                            className={cn("text-xs font-mono px-2 py-0.5 rounded bg-zinc-800", getPodColor(pod))}
+                            className={cn("text-xs font-mono px-2 py-0.5 rounded bg-muted", getPodColor(pod))}
                         >
                             {pod}
                         </span>
@@ -260,14 +260,14 @@ export function AggregatedLogs({ selector, namespace }: AggregatedLogsProps) {
             )}
 
             {/* Log content */}
-            <div className="flex-1 overflow-auto bg-zinc-950 font-mono text-xs p-3">
+            <div className="flex-1 overflow-auto bg-background font-mono text-xs p-3">
                 {logs.length === 0 ? (
                     <div className="text-muted-foreground text-center py-8">
                         Waiting for logs...
                     </div>
                 ) : (
                     logs.map((log, i) => (
-                        <div key={i} className="flex gap-2 hover:bg-zinc-900/50 py-0.5">
+                        <div key={i} className="flex gap-2 hover:bg-muted/50 py-0.5">
                             {pods.length > 1 && (
                                 <span className={cn("shrink-0 w-[200px] truncate", getPodColor(log.pod))}>
                                     [{log.pod}]

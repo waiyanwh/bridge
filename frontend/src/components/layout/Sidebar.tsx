@@ -150,13 +150,13 @@ function FloatingSubmenu({
                 className="fixed inset-0 z-50"
                 onClick={onClose}
             />
-            {/* Floating menu */}
+            {/* Floating menu - uses theme colors */}
             <div
-                className="fixed left-16 z-50 py-2 min-w-48 rounded-lg border border-zinc-700 bg-zinc-900 shadow-xl"
+                className="fixed left-16 z-50 py-2 min-w-48 rounded-lg border border-border bg-bg-secondary shadow-xl"
                 style={{ top: position.top }}
             >
                 {/* Header */}
-                <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-zinc-800 mb-1">
+                <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border mb-1">
                     {item.label}
                 </div>
                 {/* Links */}
@@ -170,8 +170,8 @@ function FloatingSubmenu({
                                 cn(
                                     'flex items-center gap-3 px-3 py-2 text-sm transition-colors',
                                     isActive
-                                        ? 'bg-zinc-800 text-foreground'
-                                        : 'text-muted-foreground hover:bg-zinc-800/50 hover:text-foreground'
+                                        ? 'bg-bg-tertiary text-foreground'
+                                        : 'text-muted-foreground hover:bg-bg-tertiary hover:text-foreground'
                                 )
                             }
                         >
@@ -210,14 +210,14 @@ function NavItemWithChildren({
 
     return (
         <div>
-            {/* Section header */}
+            {/* Section header - uses theme colors */}
             <button
                 ref={buttonRef}
                 onClick={handleClick}
                 className={cn(
-                    'flex w-full items-center gap-3 rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-zinc-800 hover:text-foreground',
+                    'flex w-full items-center gap-3 rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-bg-tertiary hover:text-foreground',
                     'focus:outline-none',
-                    floatingOpen && !isSidebarExpanded && 'bg-zinc-800 text-foreground'
+                    floatingOpen && !isSidebarExpanded && 'bg-bg-tertiary text-foreground'
                 )}
             >
                 <item.icon className="h-5 w-5 shrink-0" />
@@ -236,7 +236,7 @@ function NavItemWithChildren({
                 )}
             </button>
 
-            {/* Expanded children (sidebar expanded mode) */}
+            {/* Expanded children (sidebar expanded mode) - uses theme colors */}
             {isExpanded && isSidebarExpanded && item.children && (
                 <div className="flex flex-col gap-0.5 ml-4 mt-1">
                     {item.children.map((child) => (
@@ -248,8 +248,8 @@ function NavItemWithChildren({
                                     'flex items-center gap-3 rounded-md px-3 py-2 transition-colors',
                                     'focus:outline-none focus:ring-2 focus:ring-ring',
                                     isActive
-                                        ? 'bg-zinc-800 text-foreground'
-                                        : 'text-muted-foreground hover:bg-zinc-800/50 hover:text-foreground'
+                                        ? 'bg-bg-tertiary text-foreground'
+                                        : 'text-muted-foreground hover:bg-bg-tertiary hover:text-foreground'
                                 )
                             }
                         >
@@ -311,10 +311,10 @@ export function Sidebar() {
             className={cn(
                 // Fixed position on left
                 'fixed left-0 top-0 h-screen',
-                // Solid background
-                'bg-zinc-950',
-                // Border
-                'border-r border-zinc-800',
+                // Theme-aware background
+                'bg-bg-secondary',
+                // Theme-aware border
+                'border-r border-border',
                 // Width transition
                 'transition-all duration-300 ease-in-out',
                 isSidebarExpanded ? 'w-64' : 'w-16',
@@ -322,8 +322,8 @@ export function Sidebar() {
                 'z-40'
             )}
         >
-            {/* Logo */}
-            <div className="flex h-14 items-center border-b border-zinc-800 px-4">
+            {/* Logo - uses theme-aware border */}
+            <div className="flex h-14 items-center border-b border-border px-4">
                 <div className="flex items-center gap-3">
                     <div className="h-8 w-8 shrink-0 rounded-lg bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center">
                         <ShipWheel className="h-5 w-5 text-white" />
@@ -339,8 +339,8 @@ export function Sidebar() {
                 </div>
             </div>
 
-            {/* Context Switcher */}
-            <div className="border-b border-zinc-800 py-2">
+            {/* Context Switcher - uses theme-aware border */}
+            <div className="border-b border-border py-2">
                 <ContextSwitcher isExpanded={isSidebarExpanded} />
             </div>
 
@@ -356,14 +356,14 @@ export function Sidebar() {
                             onToggle={() => toggleSection(item.label)}
                         />
                     ) : item.action ? (
-                        // Action button (e.g., Custom Resources sheet opener)
+                        // Action button (e.g., Custom Resources sheet opener) - uses theme colors
                         <button
                             key={item.label}
                             onClick={() => handleAction(item.action!)}
                             className={cn(
                                 'flex items-center gap-3 rounded-md px-3 py-2.5 transition-colors',
                                 'focus:outline-none focus:ring-2 focus:ring-ring',
-                                'text-muted-foreground hover:bg-zinc-800/50 hover:text-foreground'
+                                'text-muted-foreground hover:bg-bg-tertiary hover:text-foreground'
                             )}
                         >
                             <item.icon className="h-5 w-5 shrink-0" />
@@ -385,8 +385,8 @@ export function Sidebar() {
                                     'flex items-center gap-3 rounded-md px-3 py-2.5 transition-colors',
                                     'focus:outline-none focus:ring-2 focus:ring-ring',
                                     isActive
-                                        ? 'bg-zinc-800 text-foreground'
-                                        : 'text-muted-foreground hover:bg-zinc-800/50 hover:text-foreground'
+                                        ? 'bg-bg-tertiary text-foreground'
+                                        : 'text-muted-foreground hover:bg-bg-tertiary hover:text-foreground'
                                 )
                             }
                         >
@@ -409,12 +409,12 @@ export function Sidebar() {
                 {/* Tunnels button */}
                 {isSidebarExpanded ? <TunnelsButton /> : <TunnelsButtonCompact />}
 
-                {/* Toggle button */}
+                {/* Toggle button - uses theme colors */}
                 <button
                     onClick={toggleSidebar}
                     className={cn(
                         'flex w-full items-center gap-3 rounded-md px-3 py-2.5 transition-colors',
-                        'text-muted-foreground hover:bg-zinc-800 hover:text-foreground',
+                        'text-muted-foreground hover:bg-bg-tertiary hover:text-foreground',
                         'focus:outline-none'
                     )}
                 >
@@ -434,15 +434,15 @@ export function Sidebar() {
                     </span>
                 </button>
 
-                {/* Settings */}
+                {/* Settings - uses theme colors */}
                 <NavLink
                     to="/settings"
                     className={({ isActive }) =>
                         cn(
                             'flex items-center gap-3 rounded-md px-3 py-2.5 transition-colors',
                             isActive
-                                ? 'bg-zinc-800 text-foreground'
-                                : 'text-muted-foreground hover:bg-zinc-800/50 hover:text-foreground'
+                                ? 'bg-bg-tertiary text-foreground'
+                                : 'text-muted-foreground hover:bg-bg-tertiary hover:text-foreground'
                         )
                     }
                 >

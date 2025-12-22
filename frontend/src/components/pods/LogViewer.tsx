@@ -73,15 +73,15 @@ export function LogViewer({ namespace, podName, container }: LogViewerProps) {
                 ref={containerRef}
                 onScroll={handleScroll}
                 className={cn(
-                    'flex-1 overflow-auto bg-black p-3 font-mono text-sm',
-                    'scrollbar-thin scrollbar-track-black scrollbar-thumb-gray-700'
+                    'flex-1 overflow-auto bg-background p-3 font-mono text-sm',
+                    'scrollbar-thin scrollbar-track-background scrollbar-thumb-muted'
                 )}
             >
                 {error && (
                     <div className="text-red-400">Error: {error}</div>
                 )}
                 {logs.length === 0 && !error && (
-                    <div className="text-gray-500">Waiting for logs...</div>
+                    <div className="text-muted-foreground">Waiting for logs...</div>
                 )}
                 {logs.map((line, index) => (
                     <div

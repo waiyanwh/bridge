@@ -120,7 +120,7 @@ export function DeploymentDetailSheet({ deployment, open, onOpenChange }: Deploy
                     </SheetHeader>
 
                     {/* Action Bar */}
-                    <div className="flex items-center gap-2 px-6 py-3 border-b border-border bg-zinc-900/30">
+                    <div className="flex items-center gap-2 px-6 py-3 border-b border-border bg-muted/30">
                         {/* Scale Button with Popover */}
                         <div className="relative">
                             <Button
@@ -139,7 +139,7 @@ export function DeploymentDetailSheet({ deployment, open, onOpenChange }: Deploy
                                         className="fixed inset-0 z-40"
                                         onClick={() => setShowScalePopover(false)}
                                     />
-                                    <div className="absolute left-0 top-full mt-2 z-50 w-64 p-4 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl">
+                                    <div className="absolute left-0 top-full mt-2 z-50 w-64 p-4 bg-popover border border-border rounded-lg shadow-xl">
                                         <div className="space-y-4">
                                             <div className="flex items-center justify-between text-sm">
                                                 <span className="text-muted-foreground">Current:</span>

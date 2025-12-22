@@ -75,18 +75,6 @@ export function ContextSwitcher({ isExpanded }: { isExpanded: boolean }) {
         }
     }, [isOpen])
 
-    // Keyboard shortcut: Cmd+Shift+K
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'k') {
-                e.preventDefault()
-                setIsOpen(prev => !prev)
-            }
-        }
-        window.addEventListener('keydown', handleKeyDown)
-        return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [])
-
     const handleSwitch = async (contextName: string) => {
         if (contextName === state.currentContext) {
             setIsOpen(false)
@@ -168,13 +156,13 @@ export function ContextSwitcher({ isExpanded }: { isExpanded: boolean }) {
                 </div>
             )}
 
-            {/* Context Button */}
+            {/* Context Button - uses shadcn accent for hover */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className={cn(
                     "w-full flex items-center gap-2 px-3 py-2 rounded-md transition-colors",
-                    "hover:bg-zinc-800/50 text-left",
-                    isOpen && "bg-zinc-800/50"
+                    "hover:bg-accent text-left",
+                    isOpen && "bg-accent"
                 )}
             >
                 <div className="h-8 w-8 shrink-0 rounded-md bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center">
@@ -203,18 +191,13 @@ export function ContextSwitcher({ isExpanded }: { isExpanded: boolean }) {
                         onClick={() => setIsOpen(false)}
                     />
 
-                    {/* Menu */}
+                    {/* Menu - uses shadcn popover colors (solid background) */}
                     <div className={cn(
-                        "absolute z-50 mt-1 rounded-lg border border-zinc-700 bg-zinc-900 shadow-xl overflow-hidden",
+                        "absolute z-50 mt-1 rounded-lg border border-border bg-popover shadow-xl overflow-hidden",
                         isExpanded ? "left-0 right-0" : "left-full ml-2 top-0 w-72"
                     )}>
-                        {/* Header */}
-                        <div className="px-3 py-2 text-xs font-medium text-muted-foreground border-b border-zinc-800">
-                            Switch Cluster <span className="text-muted-foreground/50">⌘⇧K</span>
-                        </div>
-
                         {/* Search Input - Sticky */}
-                        <div className="sticky top-0 px-3 py-2 border-b border-zinc-800 bg-zinc-900">
+                        <div className="sticky top-0 px-3 py-2 border-b border-border bg-popover">
                             <div className="relative">
                                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <input
@@ -223,7 +206,7 @@ export function ContextSwitcher({ isExpanded }: { isExpanded: boolean }) {
                                     placeholder="Search clusters..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full pl-8 pr-3 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded-md placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/50 focus:border-emerald-500/50"
+                                    className="w-full pl-8 pr-3 py-1.5 text-sm bg-muted border border-border rounded-md placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/50 focus:border-emerald-500/50"
                                 />
                             </div>
                         </div>
@@ -241,8 +224,8 @@ export function ContextSwitcher({ isExpanded }: { isExpanded: boolean }) {
                                         onClick={() => handleSwitch(ctx.name)}
                                         className={cn(
                                             "w-full flex items-center gap-2 px-3 py-2 text-left transition-colors",
-                                            "hover:bg-zinc-800",
-                                            ctx.isCurrent && "bg-zinc-800/50"
+                                            "hover:bg-accent",
+                                            ctx.isCurrent && "bg-accent"
                                         )}
                                     >
                                         <div className="w-4 h-4 flex items-center justify-center">

@@ -117,7 +117,7 @@ export function DataTable<T>({
                                     key={keyExtractor(item)}
                                     onClick={() => onRowClick?.(item)}
                                     className={cn(
-                                        'hover:bg-[hsl(224,10%,12%)]',
+                                        'hover:bg-muted/50',
                                         onRowClick && 'cursor-pointer'
                                     )}
                                 >

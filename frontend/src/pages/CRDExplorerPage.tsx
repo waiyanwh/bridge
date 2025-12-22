@@ -190,7 +190,7 @@ export function CRDExplorerPage() {
                                     onClick={() => toggleGroup(group.group)}
                                     className={cn(
                                         "w-full flex items-center justify-between px-4 py-3",
-                                        "bg-zinc-800/50 hover:bg-zinc-800 transition-colors",
+                                        "bg-muted/50 hover:bg-muted transition-colors",
                                         "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset"
                                     )}
                                 >
@@ -219,7 +219,7 @@ export function CRDExplorerPage() {
                                                 to={`/crds/${group.group}/${resource.version}/${resource.name}`}
                                                 className={cn(
                                                     "flex items-center px-4 py-3 pl-10",
-                                                    "hover:bg-zinc-800/50 transition-colors cursor-pointer",
+                                                    "hover:bg-muted/50 transition-colors cursor-pointer",
                                                     resourceIndex < group.resources.length - 1 && "border-b border-border/30"
                                                 )}
                                             >

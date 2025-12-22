@@ -147,7 +147,7 @@ export function Terminal({ namespace, podName, container, command }: TerminalPro
     return (
         <div className="flex h-full flex-col">
             {/* Status bar */}
-            <div className="flex items-center justify-between border-b border-border bg-[#1a1b26] px-3 py-1.5">
+            <div className="flex items-center justify-between border-b border-border bg-card px-3 py-1.5">
                 <div className="flex items-center gap-2">
                     <div className={`h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
                     <span className="font-mono text-xs text-muted-foreground">
@@ -162,7 +162,7 @@ export function Terminal({ namespace, podName, container, command }: TerminalPro
             {/* Terminal container */}
             <div
                 ref={terminalRef}
-                className="flex-1 bg-[#1a1b26] p-2"
+                className="flex-1 bg-card p-2"
                 style={{ minHeight: '300px' }}
             />
 
