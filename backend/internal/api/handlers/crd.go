@@ -18,41 +18,42 @@ import (
 )
 
 // CRDHandler handles CRD discovery and dynamic resource operations
+// Uses lazy client creation to ensure it always uses the current authenticated config
 type CRDHandler struct {
-	k8sService      *k8s.Service
-	discoveryClient discovery.DiscoveryInterface
-	dynamicClient   dynamic.Interface
-	apiextClient    apiextensionsclient.Interface
+	k8sService *k8s.Service
 }
 
 // NewCRDHandler creates a new CRDHandler
-func NewCRDHandler(k8sService *k8s.Service) (*CRDHandler, error) {
-	config, err := k8sService.GetConfig()
+// Clients are created lazily on each request using the current authenticated config
+func NewCRDHandler(k8sService *k8s.Service) *CRDHandler {
+	return &CRDHandler{k8sService: k8sService}
+}
+
+// getDiscoveryClient creates a discovery client using the current authenticated config
+func (h *CRDHandler) getDiscoveryClient() (discovery.DiscoveryInterface, error) {
+	config, err := h.k8sService.GetConfig()
 	if err != nil {
 		return nil, err
 	}
+	return discovery.NewDiscoveryClientForConfig(config)
+}
 
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
+// getDynamicClient creates a dynamic client using the current authenticated config
+func (h *CRDHandler) getDynamicClient() (dynamic.Interface, error) {
+	config, err := h.k8sService.GetConfig()
 	if err != nil {
 		return nil, err
 	}
+	return dynamic.NewForConfig(config)
+}
 
-	dynamicClient, err := dynamic.NewForConfig(config)
+// getAPIExtClient creates an API extensions client using the current authenticated config
+func (h *CRDHandler) getAPIExtClient() (apiextensionsclient.Interface, error) {
+	config, err := h.k8sService.GetConfig()
 	if err != nil {
 		return nil, err
 	}
-
-	apiextClient, err := apiextensionsclient.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-
-	return &CRDHandler{
-		k8sService:      k8sService,
-		discoveryClient: discoveryClient,
-		dynamicClient:   dynamicClient,
-		apiextClient:    apiextClient,
-	}, nil
+	return apiextensionsclient.NewForConfig(config)
 }
 
 // CRDResource represents a single resource type with its version
@@ -116,8 +117,18 @@ var coreGroups = map[string]bool{
 
 // ListCRDGroups handles GET /api/v1/crds
 func (h *CRDHandler) ListCRDGroups(c *gin.Context) {
+	// Get discovery client using current authenticated config
+	discoveryClient, err := h.getDiscoveryClient()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "CLIENT_ERROR",
+			Message: "Failed to create discovery client: " + err.Error(),
+		})
+		return
+	}
+
 	// Get all API resources
-	_, apiResourceLists, err := h.discoveryClient.ServerGroupsAndResources()
+	_, apiResourceLists, err := discoveryClient.ServerGroupsAndResources()
 	if err != nil {
 		// Partial results are still useful
 		if apiResourceLists == nil {
@@ -211,6 +222,16 @@ func (h *CRDHandler) ListCustomResources(c *gin.Context) {
 	resource := c.Param("resource")
 	namespace := c.Query("namespace")
 
+	// Get clients using current authenticated config
+	dynamicClient, err := h.getDynamicClient()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "CLIENT_ERROR",
+			Message: "Failed to create dynamic client: " + err.Error(),
+		})
+		return
+	}
+
 	gvr := schema.GroupVersionResource{
 		Group:    group,
 		Version:  version,
@@ -225,16 +246,15 @@ func (h *CRDHandler) ListCustomResources(c *gin.Context) {
 
 	// Get resources
 	var list *unstructured.UnstructuredList
-	var err error
 
 	// For cluster-scoped resources, ignore namespace parameter
 	if !isNamespaced {
-		list, err = h.dynamicClient.Resource(gvr).List(context.Background(), metav1.ListOptions{})
+		list, err = dynamicClient.Resource(gvr).List(context.Background(), metav1.ListOptions{})
 		namespace = "" // Clear namespace for response
 	} else if namespace != "" {
-		list, err = h.dynamicClient.Resource(gvr).Namespace(namespace).List(context.Background(), metav1.ListOptions{})
+		list, err = dynamicClient.Resource(gvr).Namespace(namespace).List(context.Background(), metav1.ListOptions{})
 	} else {
-		list, err = h.dynamicClient.Resource(gvr).List(context.Background(), metav1.ListOptions{})
+		list, err = dynamicClient.Resource(gvr).List(context.Background(), metav1.ListOptions{})
 	}
 
 	if err != nil {
@@ -266,7 +286,12 @@ func (h *CRDHandler) isResourceNamespaced(group, version, resource string) bool 
 		gv = version
 	}
 
-	resourceList, err := h.discoveryClient.ServerResourcesForGroupVersion(gv)
+	discoveryClient, err := h.getDiscoveryClient()
+	if err != nil {
+		return true // Default to namespaced on error
+	}
+
+	resourceList, err := discoveryClient.ServerResourcesForGroupVersion(gv)
 	if err != nil {
 		return true // Default to namespaced on error
 	}
@@ -296,8 +321,13 @@ func (h *CRDHandler) getPrinterColumns(group, version, resource string, isNamesp
 	})
 
 	// Try to find CRD for additionalPrinterColumns
+	apiextClient, err := h.getAPIExtClient()
+	if err != nil {
+		return defaultColumns
+	}
+
 	crdName := resource + "." + group
-	crd, err := h.apiextClient.ApiextensionsV1().CustomResourceDefinitions().Get(
+	crd, err := apiextClient.ApiextensionsV1().CustomResourceDefinitions().Get(
 		context.Background(),
 		crdName,
 		metav1.GetOptions{},
