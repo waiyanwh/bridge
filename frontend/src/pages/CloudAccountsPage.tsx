@@ -5,6 +5,8 @@ import {
     Loader2,
     Server,
     Trash2,
+    Unlink,
+    Link2,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -46,7 +48,11 @@ function extractContextDisplayName(contextName: string): string {
     return contextName
 }
 
-function ContextMappingsPanel() {
+interface ContextMappingsPanelProps {
+    onNavigateToSessions?: () => void
+}
+
+function ContextMappingsPanel({ onNavigateToSessions }: ContextMappingsPanelProps) {
     const { data: mappingsData, isLoading, error } = useBridgeContextMappings()
     const deleteMapping = useDeleteContextMapping()
 
@@ -79,14 +85,26 @@ function ContextMappingsPanel() {
         )
     }
 
-    if (!mappingsData || mappingsData.mappings.length === 0) {
+    if (!mappingsData || !mappingsData.mappings || mappingsData.mappings.length === 0) {
         return (
-            <div className="text-center py-12 text-muted-foreground">
-                <Server className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No context mappings configured.</p>
-                <p className="text-sm mt-1">
-                    Map AWS roles to your Kubernetes contexts from the SSO Sessions tab.
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="rounded-full bg-zinc-800/50 p-4 mb-4">
+                    <Unlink className="h-10 w-10 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-medium mb-2">No Contexts Mapped</h3>
+                <p className="text-sm text-muted-foreground max-w-sm mb-6">
+                    Link your Kubernetes Contexts to AWS Roles to enable seamless authentication.
                 </p>
+                {onNavigateToSessions && (
+                    <Button 
+                        variant="outline" 
+                        onClick={onNavigateToSessions}
+                        className="gap-2"
+                    >
+                        <Link2 className="h-4 w-4" />
+                        Map Context
+                    </Button>
+                )}
             </div>
         )
     }
@@ -165,7 +183,7 @@ export function CloudAccountsPage() {
             <div>
                 <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
                     <Cloud className="h-6 w-6 text-orange-400" />
-                    Cloud Accounts
+                    AWS SSO
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
                     Manage AWS SSO sessions and map accounts to your Kubernetes clusters.
@@ -202,7 +220,7 @@ export function CloudAccountsPage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <ContextMappingsPanel />
+                            <ContextMappingsPanel onNavigateToSessions={() => setActiveTab('sessions')} />
                         </CardContent>
                     </Card>
                 </TabsContent>

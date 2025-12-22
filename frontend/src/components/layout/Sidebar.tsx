@@ -103,7 +103,7 @@ const navItems: NavItem[] = [
     { icon: LayoutGrid, label: 'Namespaces', href: '/namespaces' },
     { icon: Bell, label: 'Events', href: '/events' },
     { icon: Puzzle, label: 'Custom Resources', href: '/crds' },
-    { icon: Cloud, label: 'Cloud Accounts', href: '/cloud-accounts' },
+    { icon: Cloud, label: 'AWS SSO', href: '/cloud-accounts' },
 ]
 
 // Helper to find which section contains the current path

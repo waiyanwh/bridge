@@ -348,6 +348,7 @@ func (s *Storage) GetContextMapping(contextName string) (*ContextMapping, error)
 }
 
 // DeleteContextMapping removes a context mapping
+// This allows deleting ALL mappings including the last one (results in empty array)
 func (s *Storage) DeleteContextMapping(contextName string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -357,6 +358,10 @@ func (s *Storage) DeleteContextMapping(contextName string) error {
 	var mappings ContextMappings
 	data, err := os.ReadFile(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			// File doesn't exist, nothing to delete
+			return nil
+		}
 		return err
 	}
 
@@ -364,8 +369,8 @@ func (s *Storage) DeleteContextMapping(contextName string) error {
 		return err
 	}
 
-	// Filter out the mapping
-	var newMappings []ContextMapping
+	// Filter out the mapping - initialize as empty slice (not nil) to ensure JSON serializes as []
+	newMappings := make([]ContextMapping, 0)
 	for _, m := range mappings.Mappings {
 		if m.ContextName != contextName {
 			newMappings = append(newMappings, m)
@@ -373,6 +378,7 @@ func (s *Storage) DeleteContextMapping(contextName string) error {
 	}
 	mappings.Mappings = newMappings
 
+	// Write the result even if empty - this is valid and expected
 	data, err = json.MarshalIndent(mappings, "", "  ")
 	if err != nil {
 		return err
@@ -380,4 +386,3 @@ func (s *Storage) DeleteContextMapping(contextName string) error {
 
 	return os.WriteFile(path, data, 0600)
 }
-

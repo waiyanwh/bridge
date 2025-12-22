@@ -181,13 +181,15 @@ func SetupRoutes(router *gin.Engine, k8sService *k8s.Service) {
 		// Context to AWS role mapping (Bridge-managed)
 		v1.GET("/aws/sso/bridge/context-mappings", awsSSOHandler.ListContextMappings)
 		v1.POST("/aws/sso/bridge/context-mapping", awsSSOHandler.MapContext)
-		v1.DELETE("/aws/sso/bridge/context-mapping/:contextName", awsSSOHandler.DeleteContextMapping)
+		// Use wildcard (*) to capture context names containing slashes (e.g., ARNs)
+		v1.DELETE("/aws/sso/bridge/context-mapping/*contextName", awsSSOHandler.DeleteContextMapping)
 
 		// Native EKS token generation (bypasses aws-iam-authenticator)
 		v1.POST("/aws/sso/eks-token", awsSSOHandler.GenerateEKSToken)
 
 		// Debug endpoint for troubleshooting auth issues
-		v1.GET("/aws/sso/debug/:contextName", awsSSOHandler.DebugContextAuth)
+		// Use wildcard (*) to capture context names containing slashes (e.g., ARNs)
+		v1.GET("/aws/sso/debug/*contextName", awsSSOHandler.DebugContextAuth)
 	}
 
 	// Health check endpoint

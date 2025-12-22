@@ -514,10 +514,16 @@ func (h *AWSSSOHandler) ListContextMappings(c *gin.Context) {
 	})
 }
 
-// DeleteContextMapping handles DELETE /api/v1/aws/sso/context-mapping/:contextName
+// DeleteContextMapping handles DELETE /api/v1/aws/sso/context-mapping/*contextName
 // Removes a context mapping
+// Uses wildcard (*) to handle context names containing slashes (e.g., ARNs like arn:aws:eks:region:account:cluster/name)
 func (h *AWSSSOHandler) DeleteContextMapping(c *gin.Context) {
 	contextName := c.Param("contextName")
+	// Gin wildcard parameters include the leading slash, so strip it
+	if strings.HasPrefix(contextName, "/") {
+		contextName = contextName[1:]
+	}
+
 	if contextName == "" {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
 			Error:   "INVALID_REQUEST",
@@ -694,6 +700,11 @@ func generateEKSTokenNative(ctx context.Context, accessKeyID, secretAccessKey, s
 // Returns detailed debugging information for a specific context's auth setup
 func (h *AWSSSOHandler) DebugContextAuth(c *gin.Context) {
 	contextName := c.Param("contextName")
+	// Gin wildcard parameters include the leading slash, so strip it
+	if strings.HasPrefix(contextName, "/") {
+		contextName = contextName[1:]
+	}
+
 	if contextName == "" {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
 			Error:   "MISSING_CONTEXT",

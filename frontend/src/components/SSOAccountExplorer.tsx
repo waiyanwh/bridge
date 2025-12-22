@@ -654,6 +654,182 @@ function MapRoleDialog({ open, onOpenChange, sessionName, accountId, accountName
     )
 }
 
+// Reauth Dialog for re-authenticating expired sessions
+interface ReauthDialogProps {
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    session: BridgeSession | null
+    onSuccess: () => void
+}
+
+function ReauthDialog({ open, onOpenChange, session, onSuccess }: ReauthDialogProps) {
+    const [step, setStep] = useState<'code' | 'polling'>('code')
+    const [deviceAuth, setDeviceAuth] = useState<DeviceAuthResponse | null>(null)
+    const [copied, setCopied] = useState(false)
+
+    const startDeviceAuth = useStartDeviceAuth()
+    const completeDeviceAuth = useCompleteDeviceAuth()
+
+    const resetState = useCallback(() => {
+        setStep('code')
+        setDeviceAuth(null)
+        setCopied(false)
+    }, [])
+
+    // Start device auth when dialog opens
+    useEffect(() => {
+        if (open && session && !deviceAuth) {
+            startDeviceAuth.mutateAsync({
+                startUrl: session.startUrl,
+                region: session.region,
+            }).then((result) => {
+                setDeviceAuth(result)
+            }).catch((err) => {
+                toast.error('Failed to start authentication', {
+                    description: err instanceof Error ? err.message : 'Unknown error',
+                })
+                onOpenChange(false)
+            })
+        }
+    }, [open, session, deviceAuth, startDeviceAuth, onOpenChange])
+
+    useEffect(() => {
+        if (!open) {
+            resetState()
+        }
+    }, [open, resetState])
+
+    const handleCopyCode = async () => {
+        if (deviceAuth?.userCode) {
+            await navigator.clipboard.writeText(deviceAuth.userCode)
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
+            toast.success('Code copied to clipboard')
+        }
+    }
+
+    const handleOpenBrowser = () => {
+        if (deviceAuth?.verificationUriComplete) {
+            window.open(deviceAuth.verificationUriComplete, '_blank')
+        }
+    }
+
+    const handleCompleteAuth = async () => {
+        if (!deviceAuth || !session) return
+
+        setStep('polling')
+
+        try {
+            await completeDeviceAuth.mutateAsync({
+                startUrl: session.startUrl,
+                region: session.region,
+                deviceCode: deviceAuth.deviceCode,
+                clientId: deviceAuth.clientId,
+                clientSecret: deviceAuth.clientSecret,
+            })
+
+            toast.success('Re-authenticated successfully')
+            onSuccess()
+            onOpenChange(false)
+        } catch (err) {
+            const error = err as Error & { code?: string }
+            if (error.code === 'SSO_LOGIN_REQUIRED') {
+                toast.error('Please complete the browser authentication first')
+                setStep('code')
+            } else {
+                toast.error('Authentication failed', {
+                    description: error.message || 'Unknown error',
+                })
+                setStep('code')
+            }
+        }
+    }
+
+    if (!session) return null
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <RefreshCw className="h-5 w-5 text-orange-400" />
+                        Re-authenticate Session
+                    </DialogTitle>
+                    <DialogDescription>
+                        {step === 'code' && `Your session "${session.name}" has expired. Complete login to continue.`}
+                        {step === 'polling' && 'Waiting for browser authentication...'}
+                    </DialogDescription>
+                </DialogHeader>
+
+                {step === 'code' && deviceAuth && (
+                    <div className="space-y-6 py-4">
+                        <div className="text-center space-y-4">
+                            <div className="text-sm text-muted-foreground">
+                                Copy this code and enter it in the browser:
+                            </div>
+                            <div className="flex items-center justify-center gap-3">
+                                <div className="text-4xl font-mono font-bold tracking-widest bg-zinc-800 px-6 py-4 rounded-lg">
+                                    {deviceAuth.userCode}
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={handleCopyCode}
+                                    className="shrink-0"
+                                >
+                                    {copied ? (
+                                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                    ) : (
+                                        <Copy className="h-4 w-4" />
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-3">
+                            <Button
+                                onClick={handleOpenBrowser}
+                                className="gap-2"
+                            >
+                                <ExternalLink className="h-4 w-4" />
+                                Open AWS Login Page
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={handleCompleteAuth}
+                                disabled={completeDeviceAuth.isPending}
+                            >
+                                I've completed the login
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
+                {step === 'code' && !deviceAuth && (
+                    <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                        <Loader2 className="h-10 w-10 animate-spin text-orange-400" />
+                        <div className="text-center">
+                            <p className="font-medium">Starting authentication...</p>
+                        </div>
+                    </div>
+                )}
+
+                {step === 'polling' && (
+                    <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                        <Loader2 className="h-10 w-10 animate-spin text-orange-400" />
+                        <div className="text-center">
+                            <p className="font-medium">Waiting for authentication...</p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                                Complete the login in your browser to continue.
+                            </p>
+                        </div>
+                    </div>
+                )}
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 export function SSOAccountExplorer() {
     const { data: sessionsData, isLoading, error, refetch } = useBridgeSessions()
     const syncSession = useSyncBridgeSession()
@@ -669,8 +845,18 @@ export function SSOAccountExplorer() {
         roleName: string
     } | null>(null)
 
+    // Reauth dialog state
+    const [reauthDialogOpen, setReauthDialogOpen] = useState(false)
+    const [sessionToReauth, setSessionToReauth] = useState<BridgeSession | null>(null)
+    const [pendingSyncAfterReauth, setPendingSyncAfterReauth] = useState(false)
+
+    // Smart sync: checks auth status and handles re-auth automatically
     const handleSync = async (sessionName: string) => {
+        const session = sessionsData?.sessions?.find(s => s.name === sessionName)
+        if (!session) return
+
         setSyncingSession(sessionName)
+
         try {
             const result = await syncSession.mutateAsync(sessionName)
             toast.success('Session synced', {
@@ -678,17 +864,53 @@ export function SSOAccountExplorer() {
             })
         } catch (err) {
             const error = err as Error & { code?: string }
-            if (error.code === 'SSO_LOGIN_REQUIRED') {
-                toast.error('SSO login required', {
-                    description: 'Please login to AWS SSO first.',
-                })
+            if (error.code === 'SSO_LOGIN_REQUIRED' || error.message?.includes('SSO_LOGIN_REQUIRED') || error.message?.includes('expired')) {
+                // Session expired - trigger re-auth flow
+                setSessionToReauth(session)
+                setPendingSyncAfterReauth(true)
+                setReauthDialogOpen(true)
+                // Don't clear syncing state - keep the spinner going
+                return
             } else {
                 toast.error('Failed to sync session', {
                     description: error.message || 'Unknown error',
                 })
             }
-        } finally {
-            setSyncingSession(null)
+        }
+        setSyncingSession(null)
+    }
+
+    // Handle successful re-authentication
+    const handleReauthSuccess = async () => {
+        if (pendingSyncAfterReauth && sessionToReauth) {
+            // Re-auth succeeded, now do the sync
+            try {
+                const result = await syncSession.mutateAsync(sessionToReauth.name)
+                toast.success('Session synced', {
+                    description: result.message,
+                })
+            } catch (err) {
+                toast.error('Failed to sync after re-auth', {
+                    description: err instanceof Error ? err.message : 'Unknown error',
+                })
+            }
+        }
+        // Clean up
+        setPendingSyncAfterReauth(false)
+        setSyncingSession(null)
+        setSessionToReauth(null)
+        refetch()
+    }
+
+    // Clean up on reauth dialog close
+    const handleReauthDialogChange = (open: boolean) => {
+        setReauthDialogOpen(open)
+        if (!open) {
+            // Dialog was closed without completing
+            if (pendingSyncAfterReauth) {
+                setSyncingSession(null)
+                setPendingSyncAfterReauth(false)
+            }
         }
     }
 
@@ -788,6 +1010,14 @@ export function SSOAccountExplorer() {
                     roleName={selectedRole.roleName}
                 />
             )}
+
+            {/* Reauth Dialog for expired sessions */}
+            <ReauthDialog
+                open={reauthDialogOpen}
+                onOpenChange={handleReauthDialogChange}
+                session={sessionToReauth}
+                onSuccess={handleReauthSuccess}
+            />
         </div>
     )
 }

@@ -116,11 +116,18 @@ func (cm *ClientManager) loadConfig(contextName string) error {
 		return fmt.Errorf("failed to build config for context '%s': %w", cm.currentContext, err)
 	}
 
+	// Reset cached token state
+	cm.cachedToken = ""
+	cm.cachedTokenExpiry = time.Time{}
+
 	// ⚡️ CHECK FOR SSO MAPPING - Native EKS Authentication
 	// If this context is mapped to an AWS SSO role, generate a native EKS token
 	if cm.ssoStorage != nil {
-		if mapping, err := cm.ssoStorage.GetContextMapping(cm.currentContext); err == nil {
-			log.Printf("[ClientManager] Found SSO mapping for context '%s' -> %s/%s",
+		mapping, mappingErr := cm.ssoStorage.GetContextMapping(cm.currentContext)
+
+		if mappingErr == nil && mapping != nil {
+			// ✅ [Happy Path] Bridge handles Auth
+			log.Printf("✅ [Auth] Bridge Identity used for context: %s -> %s/%s",
 				cm.currentContext, mapping.AccountId, mapping.RoleName)
 
 			// Extract cluster name from the context/cluster ARN
@@ -128,21 +135,45 @@ func (cm *ClientManager) loadConfig(contextName string) error {
 
 			if clusterName != "" {
 				// Try to generate native EKS token
-				token, expiry, err := cm.generateNativeEKSToken(context.Background(), mapping, clusterName)
-				if err != nil {
-					log.Printf("[ClientManager] Warning: Failed to generate native EKS token: %v (falling back to kubeconfig)", err)
-				} else {
-					log.Printf("[ClientManager] ⚡️ Using native EKS token (expires: %s)", expiry.Format(time.RFC3339))
+				token, expiry, tokenErr := cm.generateNativeEKSToken(context.Background(), mapping, clusterName)
+				if tokenErr != nil {
+					// Wrap error clearly for better debugging
+					log.Printf("❌ [Auth] Bridge SSO Error for '%s': %v", cm.currentContext, tokenErr)
+					// Block the CLI fallback to prevent ugly errors
+					if config.ExecProvider != nil {
+						config.ExecProvider = nil
+					}
+					return fmt.Errorf("Bridge SSO Error: Failed to generate token for '%s'. Please check your session expiry. Error: %w", cm.currentContext, tokenErr)
+				}
 
-					// ⚡️ OVERRIDE: Remove the 'Exec' provider (stop it from calling 'aws-iam-authenticator')
+				log.Printf("✅ [Auth] Native EKS token generated (expires: %s)", expiry.Format(time.RFC3339))
+
+				// ⚡️ OVERRIDE: Remove the 'Exec' provider (stop it from calling 'aws-iam-authenticator')
+				config.ExecProvider = nil
+
+				// ⚡️ INJECT: Set the Bearer Token directly
+				config.BearerToken = token
+
+				// Cache the token
+				cm.cachedToken = token
+				cm.cachedTokenExpiry = expiry
+			} else {
+				log.Printf("⚠️ [Auth] Could not extract cluster name for '%s'. Bridge auth disabled.", cm.currentContext)
+			}
+		} else {
+			// ⚠️ [Fallback Path] No Bridge mapping exists
+			log.Printf("⚠️ [Auth] No Bridge mapping for '%s'. ", cm.currentContext)
+
+			// 🚫 BLOCK AWS CLI to prevent ugly "Unable to locate credentials" spam
+			// Check if the kubeconfig uses an exec provider that calls 'aws'
+			if config.ExecProvider != nil {
+				execCmd := config.ExecProvider.Command
+				if strings.Contains(execCmd, "aws") {
+					log.Printf("🚫 [Auth] Blocked 'aws' CLI for context '%s' (Bridge Identity mapping required)", cm.currentContext)
+					// Disable the exec provider - this prevents the AWS CLI from being called
+					// and avoids the ugly "Unable to locate credentials" stderr spam
 					config.ExecProvider = nil
-
-					// ⚡️ INJECT: Set the Bearer Token directly
-					config.BearerToken = token
-
-					// Cache the token
-					cm.cachedToken = token
-					cm.cachedTokenExpiry = expiry
+					// The clientset will fail gracefully with "no credentials provided" error
 				}
 			}
 		}
@@ -157,7 +188,7 @@ func (cm *ClientManager) loadConfig(contextName string) error {
 	}
 	cm.clientset = clientset
 
-	log.Printf("[ClientManager] Loaded context: %s (cluster: %s)", cm.currentContext, config.Host)
+	log.Printf("✅ [Context] Loaded: %s (cluster: %s)", cm.currentContext, config.Host)
 
 	return nil
 }
@@ -165,26 +196,17 @@ func (cm *ClientManager) loadConfig(contextName string) error {
 // generateNativeEKSToken generates an EKS bearer token using native AWS SDK
 // This bypasses the need for aws-iam-authenticator binary
 func (cm *ClientManager) generateNativeEKSToken(ctx context.Context, mapping *aws.ContextMapping, clusterName string) (string, time.Time, error) {
-	log.Printf("[ClientManager] generateNativeEKSToken: starting...")
-	log.Printf("[ClientManager] generateNativeEKSToken: sessionName=%s, accountId=%s, roleName=%s, region=%s, cluster=%s",
-		mapping.SessionName, mapping.AccountId, mapping.RoleName, mapping.Region, clusterName)
-
 	if cm.ssoClient == nil {
 		return "", time.Time{}, fmt.Errorf("SSO client not initialized")
 	}
 
 	// Get role credentials from SSO
-	log.Printf("[ClientManager] generateNativeEKSToken: fetching role credentials...")
-	creds, profileName, err := cm.ssoClient.GenerateProfileCredentials(ctx, mapping.SessionName, mapping.AccountId, mapping.RoleName)
+	creds, _, err := cm.ssoClient.GenerateProfileCredentials(ctx, mapping.SessionName, mapping.AccountId, mapping.RoleName)
 	if err != nil {
-		log.Printf("[ClientManager] generateNativeEKSToken: ERROR getting SSO credentials: %v", err)
-		return "", time.Time{}, fmt.Errorf("failed to get SSO credentials: %w", err)
+		return "", time.Time{}, fmt.Errorf("SSO credentials error (session may be expired): %w", err)
 	}
-	log.Printf("[ClientManager] generateNativeEKSToken: got credentials (profile=%s, accessKey=%s..., expires=%s)",
-		profileName, creds.AccessKeyId[:10], creds.Expiration.Format(time.RFC3339))
 
 	// Generate native EKS token
-	log.Printf("[ClientManager] generateNativeEKSToken: generating EKS token for cluster=%s, region=%s", clusterName, mapping.Region)
 	token, expiry, err := eks.GenerateTokenForContext(
 		ctx,
 		creds.AccessKeyId,
@@ -194,33 +216,25 @@ func (cm *ClientManager) generateNativeEKSToken(ctx context.Context, mapping *aw
 		mapping.Region,
 	)
 	if err != nil {
-		log.Printf("[ClientManager] generateNativeEKSToken: ERROR generating token: %v", err)
-		return "", time.Time{}, fmt.Errorf("failed to generate EKS token: %w", err)
+		return "", time.Time{}, fmt.Errorf("EKS token generation failed: %w", err)
 	}
 
-	log.Printf("[ClientManager] generateNativeEKSToken: SUCCESS! token length=%d, expires=%s", len(token), expiry.Format(time.RFC3339))
 	return token, expiry, nil
 }
 
 // extractClusterName extracts the EKS cluster name from context/cluster info
 func (cm *ClientManager) extractClusterName(contextName string, rawConfig *api.Config) string {
-	log.Printf("[ClientManager] extractClusterName: contextName=%s", contextName)
-
 	// First, try to get it from the cluster ARN in the context
 	if ctx, exists := rawConfig.Contexts[contextName]; exists {
 		clusterRef := ctx.Cluster
-		log.Printf("[ClientManager] extractClusterName: clusterRef=%s", clusterRef)
 
 		// Try to extract from ARN format: arn:aws:eks:region:account:cluster/cluster-name
 		if clusterName, err := eks.ExtractClusterNameFromARN(clusterRef); err == nil {
-			log.Printf("[ClientManager] extractClusterName: extracted from ARN: %s", clusterName)
 			return clusterName
 		}
 
 		// Try to get from cluster config
 		if cluster, exists := rawConfig.Clusters[clusterRef]; exists {
-			log.Printf("[ClientManager] extractClusterName: cluster server=%s", cluster.Server)
-
 			// Check if the server URL is an EKS URL
 			// Format: https://<id>.gr7.<region>.eks.amazonaws.com
 			if strings.Contains(cluster.Server, ".eks.amazonaws.com") {
@@ -229,15 +243,12 @@ func (cm *ClientManager) extractClusterName(contextName string, rawConfig *api.C
 				if strings.Contains(contextName, "/") {
 					parts := strings.Split(contextName, "/")
 					if len(parts) > 0 {
-						lastPart := parts[len(parts)-1]
-						log.Printf("[ClientManager] extractClusterName: extracted from context name: %s", lastPart)
-						return lastPart
+						return parts[len(parts)-1]
 					}
 				}
 
 				// Try clusterRef if it's not an ARN
 				if !strings.HasPrefix(clusterRef, "arn:") {
-					log.Printf("[ClientManager] extractClusterName: using clusterRef directly: %s", clusterRef)
 					return clusterRef
 				}
 			}
@@ -246,16 +257,12 @@ func (cm *ClientManager) extractClusterName(contextName string, rawConfig *api.C
 		// Fallback: try to extract from clusterRef if it contains a cluster name
 		if strings.Contains(clusterRef, "/") {
 			parts := strings.Split(clusterRef, "/")
-			lastPart := parts[len(parts)-1]
-			log.Printf("[ClientManager] extractClusterName: fallback from clusterRef: %s", lastPart)
-			return lastPart
+			return parts[len(parts)-1]
 		}
 
-		log.Printf("[ClientManager] extractClusterName: final fallback using clusterRef: %s", clusterRef)
 		return clusterRef
 	}
 
-	log.Printf("[ClientManager] extractClusterName: context not found!")
 	return ""
 }
 
