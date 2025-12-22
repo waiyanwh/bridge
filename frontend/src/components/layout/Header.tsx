@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Server, ChevronDown, Check, RefreshCw } from 'lucide-react'
+import { Server, ChevronDown, Check, RefreshCw, AlertCircle, WifiOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useNamespaces } from '@/hooks'
@@ -10,10 +10,15 @@ import { cn } from '@/lib/utils'
 
 const API_BASE = '/api/v1'
 
+type ConnectionStatus = 'connected' | 'disconnected' | 'degraded' | 'checking'
+
 export function Header() {
     const [dropdownOpen, setDropdownOpen] = useState(false)
     const dropdownRef = useRef<HTMLDivElement>(null)
     const location = useLocation()
+
+    // Connection status state
+    const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('checking')
 
     // Context/Cluster info from API
     const [contextInfo, setContextInfo] = useState({
@@ -44,6 +49,45 @@ export function Header() {
             }
         }
         fetchContextInfo()
+    }, [])
+
+    // Check actual cluster connectivity by calling dashboard stats
+    useEffect(() => {
+        async function checkConnection() {
+            try {
+                const response = await fetch(`${API_BASE}/dashboard/stats`)
+                if (!response.ok) {
+                    setConnectionStatus('disconnected')
+                    return
+                }
+                
+                const data = await response.json()
+                const clusterHealth = data.clusterHealth
+                
+                // Check if we can actually reach the cluster
+                if (!clusterHealth || clusterHealth.totalNodes === 0) {
+                    // No nodes means we can't connect to the cluster
+                    setConnectionStatus('disconnected')
+                } else if (clusterHealth.status === 'Healthy') {
+                    setConnectionStatus('connected')
+                } else if (clusterHealth.status === 'Degraded') {
+                    setConnectionStatus('degraded')
+                } else {
+                    // Unknown status
+                    setConnectionStatus('disconnected')
+                }
+            } catch (err) {
+                console.error('Failed to check cluster connection:', err)
+                setConnectionStatus('disconnected')
+            }
+        }
+
+        // Initial check
+        checkConnection()
+
+        // Re-check every 15 seconds
+        const interval = setInterval(checkConnection, 15000)
+        return () => clearInterval(interval)
     }, [])
 
     // Hide namespace selector on namespace detail pages to avoid dual context
@@ -164,12 +208,32 @@ export function Header() {
                 )}
             </div>
 
-            {/* Right side - Actions */}
+            {/* Right side - Connection Status */}
             <div className="flex items-center gap-3">
-                <Badge variant="success" className="gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
-                    Connected
-                </Badge>
+                {connectionStatus === 'checking' && (
+                    <Badge variant="secondary" className="gap-1.5">
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                        Checking...
+                    </Badge>
+                )}
+                {connectionStatus === 'connected' && (
+                    <Badge variant="success" className="gap-1.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
+                        Connected
+                    </Badge>
+                )}
+                {connectionStatus === 'degraded' && (
+                    <Badge variant="warning" className="gap-1.5">
+                        <AlertCircle className="h-3 w-3" />
+                        Degraded
+                    </Badge>
+                )}
+                {connectionStatus === 'disconnected' && (
+                    <Badge variant="destructive" className="gap-1.5">
+                        <WifiOff className="h-3 w-3" />
+                        Disconnected
+                    </Badge>
+                )}
             </div>
         </header>
     )

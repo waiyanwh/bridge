@@ -24,6 +24,7 @@ import {
     Home,
     LayoutGrid,
     Puzzle,
+    Cloud,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store'
@@ -102,6 +103,7 @@ const navItems: NavItem[] = [
     { icon: LayoutGrid, label: 'Namespaces', href: '/namespaces' },
     { icon: Bell, label: 'Events', href: '/events' },
     { icon: Puzzle, label: 'Custom Resources', href: '/crds' },
+    { icon: Cloud, label: 'Cloud Accounts', href: '/cloud-accounts' },
 ]
 
 // Helper to find which section contains the current path
