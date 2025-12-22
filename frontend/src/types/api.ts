@@ -53,10 +53,10 @@ export interface NodeInfo {
     memoryUsagePercent: number
     podCount: number
     age: string
-    osImage?: string
-    kernelVersion?: string
-    containerRuntime?: string
-    architecture?: string
+    osImage: string
+    kernelVersion: string
+    containerRuntime: string
+    architecture: string
 }
 
 // ConfigMap information
