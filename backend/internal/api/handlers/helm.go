@@ -6,34 +6,86 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/waiyan/bridge/internal/k8s"
 	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/cli"
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/discovery/cached/memory"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/restmapper"
+	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 )
 
-// HelmHandler handles Helm-related HTTP requests
-type HelmHandler struct {
-	settings *cli.EnvSettings
+// BridgeRESTClientGetter implements genericclioptions.RESTClientGetter
+// This adapter allows Helm to use Bridge's authenticated config with SSO tokens
+type BridgeRESTClientGetter struct {
+	clientManager *k8s.ClientManager
+	namespace     string
 }
 
-// NewHelmHandler creates a new HelmHandler
-func NewHelmHandler() *HelmHandler {
+// ToRESTConfig returns the authenticated REST config from Bridge's ClientManager
+// ⚡️ MAGIC: This returns the config with the injected SSO Bearer Token
+func (b *BridgeRESTClientGetter) ToRESTConfig() (*rest.Config, error) {
+	config := b.clientManager.GetConfig()
+	if config == nil {
+		return nil, fmt.Errorf("no REST config available from ClientManager")
+	}
+	// Return a copy to avoid mutations
+	return rest.CopyConfig(config), nil
+}
+
+// ToDiscoveryClient returns a discovery client for the cluster
+func (b *BridgeRESTClientGetter) ToDiscoveryClient() (discovery.CachedDiscoveryInterface, error) {
+	config, err := b.ToRESTConfig()
+	if err != nil {
+		return nil, err
+	}
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	return memory.NewMemCacheClient(discoveryClient), nil
+}
+
+// ToRESTMapper returns a RESTMapper for resource mapping
+func (b *BridgeRESTClientGetter) ToRESTMapper() (meta.RESTMapper, error) {
+	discoveryClient, err := b.ToDiscoveryClient()
+	if err != nil {
+		return nil, err
+	}
+	return restmapper.NewDeferredDiscoveryRESTMapper(discoveryClient), nil
+}
+
+// ToRawKubeConfigLoader returns nil - we don't need raw kubeconfig loading
+// since we're using Bridge's managed config
+func (b *BridgeRESTClientGetter) ToRawKubeConfigLoader() clientcmd.ClientConfig {
+	return nil
+}
+
+// HelmHandler handles Helm-related HTTP requests
+type HelmHandler struct {
+	clientManager *k8s.ClientManager
+}
+
+// NewHelmHandler creates a new HelmHandler with the ClientManager for auth
+func NewHelmHandler(clientManager *k8s.ClientManager) *HelmHandler {
 	return &HelmHandler{
-		settings: cli.New(),
+		clientManager: clientManager,
 	}
 }
 
 // HelmReleaseInfo represents a Helm release
 type HelmReleaseInfo struct {
-	Name       string `json:"name"`
-	Namespace  string `json:"namespace"`
-	Revision   int    `json:"revision"`
-	Status     string `json:"status"`
-	Chart      string `json:"chart"`
+	Name         string `json:"name"`
+	Namespace    string `json:"namespace"`
+	Revision     int    `json:"revision"`
+	Status       string `json:"status"`
+	Chart        string `json:"chart"`
 	ChartVersion string `json:"chartVersion"`
-	AppVersion string `json:"appVersion"`
-	Updated    string `json:"updated"`
-	Notes      string `json:"notes,omitempty"`
+	AppVersion   string `json:"appVersion"`
+	Updated      string `json:"updated"`
+	Notes        string `json:"notes,omitempty"`
 }
 
 // HelmReleaseDetail represents detailed release info
@@ -74,21 +126,29 @@ type ReleaseHistoryResponse struct {
 }
 
 func (h *HelmHandler) getActionConfig(namespace string) (*action.Configuration, error) {
+	// ⚡️ Use Bridge's authenticated config instead of reading from ~/.kube/config
+	getter := &BridgeRESTClientGetter{
+		clientManager: h.clientManager,
+		namespace:     namespace,
+	}
+
 	actionConfig := new(action.Configuration)
-	
-	if err := actionConfig.Init(h.settings.RESTClientGetter(), namespace, "secret", func(format string, v ...interface{}) {
+
+	// Initialize with OUR getter, not the default one
+	// This ensures Helm uses Bridge's SSO token for authentication
+	if err := actionConfig.Init(getter, namespace, "secret", func(format string, v ...interface{}) {
 		// Log function - we can ignore or log
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to initialize Helm action config: %w", err)
 	}
-	
+
 	return actionConfig, nil
 }
 
 // ListReleases handles GET /api/v1/helm/releases
 func (h *HelmHandler) ListReleases(c *gin.Context) {
 	namespace := c.DefaultQuery("namespace", "")
-	
+
 	// Empty namespace means all namespaces
 	actionConfig, err := h.getActionConfig(namespace)
 	if err != nil {
@@ -98,11 +158,11 @@ func (h *HelmHandler) ListReleases(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	listAction := action.NewList(actionConfig)
 	listAction.AllNamespaces = namespace == "" || namespace == "all"
 	listAction.All = true // Include all statuses
-	
+
 	releases, err := listAction.Run()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
@@ -111,19 +171,19 @@ func (h *HelmHandler) ListReleases(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	result := make([]HelmReleaseInfo, 0, len(releases))
 	for _, r := range releases {
 		chartVersion := ""
 		appVersion := ""
 		chartName := ""
-		
+
 		if r.Chart != nil && r.Chart.Metadata != nil {
 			chartName = r.Chart.Metadata.Name
 			chartVersion = r.Chart.Metadata.Version
 			appVersion = r.Chart.Metadata.AppVersion
 		}
-		
+
 		result = append(result, HelmReleaseInfo{
 			Name:         r.Name,
 			Namespace:    r.Namespace,
@@ -135,7 +195,7 @@ func (h *HelmHandler) ListReleases(c *gin.Context) {
 			Updated:      r.Info.LastDeployed.Format("2006-01-02 15:04:05"),
 		})
 	}
-	
+
 	c.JSON(http.StatusOK, ListReleasesResponse{
 		Releases: result,
 		Count:    len(result),
@@ -146,7 +206,7 @@ func (h *HelmHandler) ListReleases(c *gin.Context) {
 func (h *HelmHandler) GetRelease(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
-	
+
 	actionConfig, err := h.getActionConfig(namespace)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
@@ -155,7 +215,7 @@ func (h *HelmHandler) GetRelease(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	getAction := action.NewGet(actionConfig)
 	release, err := getAction.Run(name)
 	if err != nil {
@@ -165,22 +225,22 @@ func (h *HelmHandler) GetRelease(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	chartVersion := ""
 	appVersion := ""
 	chartName := ""
-	
+
 	if release.Chart != nil && release.Chart.Metadata != nil {
 		chartName = release.Chart.Metadata.Name
 		chartVersion = release.Chart.Metadata.Version
 		appVersion = release.Chart.Metadata.AppVersion
 	}
-	
+
 	notes := ""
 	if release.Info != nil {
 		notes = release.Info.Notes
 	}
-	
+
 	c.JSON(http.StatusOK, HelmReleaseDetail{
 		HelmReleaseInfo: HelmReleaseInfo{
 			Name:         release.Name,
@@ -202,7 +262,7 @@ func (h *HelmHandler) GetRelease(c *gin.Context) {
 func (h *HelmHandler) GetReleaseValues(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
-	
+
 	actionConfig, err := h.getActionConfig(namespace)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
@@ -211,10 +271,10 @@ func (h *HelmHandler) GetReleaseValues(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	getAction := action.NewGetValues(actionConfig)
 	getAction.AllValues = false // Only user-supplied values
-	
+
 	values, err := getAction.Run(name)
 	if err != nil {
 		c.JSON(http.StatusNotFound, ErrorResponse{
@@ -223,7 +283,7 @@ func (h *HelmHandler) GetReleaseValues(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Convert to YAML
 	yamlBytes, err := yaml.Marshal(values)
 	if err != nil {
@@ -233,7 +293,7 @@ func (h *HelmHandler) GetReleaseValues(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, ReleaseValuesResponse{
 		Name:      name,
 		Namespace: namespace,
@@ -246,12 +306,12 @@ func (h *HelmHandler) GetReleaseHistory(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 	maxHistory := c.DefaultQuery("max", "10")
-	
+
 	max, err := strconv.Atoi(maxHistory)
 	if err != nil {
 		max = 10
 	}
-	
+
 	actionConfig, err := h.getActionConfig(namespace)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
@@ -260,10 +320,10 @@ func (h *HelmHandler) GetReleaseHistory(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	historyAction := action.NewHistory(actionConfig)
 	historyAction.Max = max
-	
+
 	releases, err := historyAction.Run(name)
 	if err != nil {
 		c.JSON(http.StatusNotFound, ErrorResponse{
@@ -272,22 +332,22 @@ func (h *HelmHandler) GetReleaseHistory(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	history := make([]HelmRevisionInfo, 0, len(releases))
 	for _, r := range releases {
 		chartName := ""
 		appVersion := ""
-		
+
 		if r.Chart != nil && r.Chart.Metadata != nil {
 			chartName = fmt.Sprintf("%s-%s", r.Chart.Metadata.Name, r.Chart.Metadata.Version)
 			appVersion = r.Chart.Metadata.AppVersion
 		}
-		
+
 		description := ""
 		if r.Info != nil {
 			description = r.Info.Description
 		}
-		
+
 		history = append(history, HelmRevisionInfo{
 			Revision:    r.Version,
 			Updated:     r.Info.LastDeployed.Format("2006-01-02 15:04:05"),
@@ -297,7 +357,7 @@ func (h *HelmHandler) GetReleaseHistory(c *gin.Context) {
 			Description: description,
 		})
 	}
-	
+
 	c.JSON(http.StatusOK, ReleaseHistoryResponse{
 		Name:      name,
 		Namespace: namespace,
