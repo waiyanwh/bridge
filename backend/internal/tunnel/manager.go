@@ -17,6 +17,12 @@ import (
 	"k8s.io/client-go/transport/spdy"
 )
 
+// K8sServiceGetter interface for lazy client access
+type K8sServiceGetter interface {
+	GetClientset() (*kubernetes.Clientset, error)
+	GetConfig() (*rest.Config, error)
+}
+
 // TunnelStatus represents the status of a tunnel
 type TunnelStatus string
 
@@ -48,16 +54,14 @@ type Tunnel struct {
 type Manager struct {
 	tunnels    map[string]*Tunnel
 	mutex      sync.RWMutex
-	clientset  kubernetes.Interface
-	restConfig *rest.Config
+	k8sService K8sServiceGetter
 }
 
 // NewManager creates a new tunnel manager
-func NewManager(clientset kubernetes.Interface, restConfig *rest.Config) *Manager {
+func NewManager(k8sService K8sServiceGetter) *Manager {
 	return &Manager{
 		tunnels:    make(map[string]*Tunnel),
-		clientset:  clientset,
-		restConfig: restConfig,
+		k8sService: k8sService,
 	}
 }
 
@@ -102,7 +106,11 @@ func (m *Manager) Create(req CreateTunnelRequest) (*TunnelInfo, error) {
 	// For services, we need to find a backing pod
 	podName := req.ResourceName
 	if strings.ToLower(req.ResourceType) == "service" {
-		foundPod, err := m.findPodForService(req.Namespace, req.ResourceName)
+		clientset, err := m.k8sService.GetClientset()
+		if err != nil {
+			return nil, fmt.Errorf("client not ready: %w", err)
+		}
+		foundPod, err := m.findPodForService(clientset, req.Namespace, req.ResourceName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to find pod for service: %w", err)
 		}
@@ -132,11 +140,11 @@ func (m *Manager) Create(req CreateTunnelRequest) (*TunnelInfo, error) {
 }
 
 // findPodForService finds a pod that backs a service
-func (m *Manager) findPodForService(namespace, serviceName string) (string, error) {
+func (m *Manager) findPodForService(clientset kubernetes.Interface, namespace, serviceName string) (string, error) {
 	ctx := context.Background()
 
 	// Get the service to find its selector
-	svc, err := m.clientset.CoreV1().Services(namespace).Get(ctx, serviceName, metav1.GetOptions{})
+	svc, err := clientset.CoreV1().Services(namespace).Get(ctx, serviceName, metav1.GetOptions{})
 	if err != nil {
 		return "", fmt.Errorf("failed to get service: %w", err)
 	}
@@ -153,7 +161,7 @@ func (m *Manager) findPodForService(namespace, serviceName string) (string, erro
 	labelSelector := strings.Join(selectorParts, ",")
 
 	// Find pods matching the selector
-	pods, err := m.clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
 		Limit:         1,
 	})
@@ -264,11 +272,18 @@ func (m *Manager) startPortForward(tunnel *Tunnel) {
 		}
 	}()
 
+	// Get REST config from k8sService (lazy)
+	restConfig, err := m.k8sService.GetConfig()
+	if err != nil {
+		m.setTunnelError(tunnel, err)
+		return
+	}
+
 	// Always forward to a pod (PodName is set even for services)
 	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/portforward",
 		tunnel.Namespace, tunnel.PodName)
 
-	hostURL, err := url.Parse(m.restConfig.Host)
+	hostURL, err := url.Parse(restConfig.Host)
 	if err != nil {
 		m.setTunnelError(tunnel, err)
 		return
@@ -276,7 +291,7 @@ func (m *Manager) startPortForward(tunnel *Tunnel) {
 
 	hostURL.Path = path
 
-	transport, upgrader, err := spdy.RoundTripperFor(m.restConfig)
+	transport, upgrader, err := spdy.RoundTripperFor(restConfig)
 	if err != nil {
 		m.setTunnelError(tunnel, err)
 		return

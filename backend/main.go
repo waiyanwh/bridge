@@ -21,15 +21,22 @@ var frontendFS embed.FS
 
 func main() {
 	// Initialize Kubernetes ClientManager (supports dynamic context switching)
+	// Uses lazy connection: if SSO token is expired, app still starts and will retry on first request
 	clientManager, err := k8s.NewClientManager()
 	if err != nil {
+		// Only fatal errors (e.g., no kubeconfig file) will reach here
 		log.Printf("ERROR: Failed to initialize Kubernetes client: %v", err)
 		log.Printf("Hint: Ensure your kubeconfig is available at ~/.kube/config or set KUBECONFIG environment variable")
 		os.Exit(1)
 	}
 
+	// Log cluster info if available (may be empty if connection failed)
 	contextName, clusterName, serverURL := clientManager.GetClusterInfo()
-	log.Printf("Successfully connected to Kubernetes cluster: %s (context: %s, server: %s)", clusterName, contextName, serverURL)
+	if serverURL != "" {
+		log.Printf("Successfully connected to Kubernetes cluster: %s (context: %s, server: %s)", clusterName, contextName, serverURL)
+	} else {
+		log.Printf("⚠️ Kubernetes client initialized but not connected (will connect on first request)")
+	}
 
 	// Create K8s service wrapper
 	k8sService := k8s.NewService(clientManager)

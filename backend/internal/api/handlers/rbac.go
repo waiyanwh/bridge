@@ -83,7 +83,16 @@ func (h *RBACHandler) ListServiceAccounts(c *gin.Context) {
 		ns = namespace
 	}
 
-	saList, err := h.k8sService.GetClientset().CoreV1().ServiceAccounts(ns).List(context.Background(), metav1.ListOptions{})
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	saList, err := clientset.CoreV1().ServiceAccounts(ns).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "KUBERNETES_ERROR",
@@ -125,7 +134,16 @@ func (h *RBACHandler) ListRoles(c *gin.Context) {
 		ns = namespace
 	}
 
-	roleList, err := h.k8sService.GetClientset().RbacV1().Roles(ns).List(context.Background(), metav1.ListOptions{})
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	roleList, err := clientset.RbacV1().Roles(ns).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "KUBERNETES_ERROR",
@@ -167,7 +185,16 @@ func (h *RBACHandler) ListRoles(c *gin.Context) {
 
 // ListClusterRoles handles GET /api/v1/clusterroles
 func (h *RBACHandler) ListClusterRoles(c *gin.Context) {
-	crList, err := h.k8sService.GetClientset().RbacV1().ClusterRoles().List(context.Background(), metav1.ListOptions{})
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	crList, err := clientset.RbacV1().ClusterRoles().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "KUBERNETES_ERROR",
@@ -243,7 +270,16 @@ func (h *RBACHandler) ListRoleBindings(c *gin.Context) {
 		ns = namespace
 	}
 
-	rbList, err := h.k8sService.GetClientset().RbacV1().RoleBindings(ns).List(context.Background(), metav1.ListOptions{})
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	rbList, err := clientset.RbacV1().RoleBindings(ns).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "KUBERNETES_ERROR",
@@ -283,7 +319,16 @@ func (h *RBACHandler) ListRoleBindings(c *gin.Context) {
 
 // ListClusterRoleBindings handles GET /api/v1/clusterrolebindings
 func (h *RBACHandler) ListClusterRoleBindings(c *gin.Context) {
-	crbList, err := h.k8sService.GetClientset().RbacV1().ClusterRoleBindings().List(context.Background(), metav1.ListOptions{})
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	crbList, err := clientset.RbacV1().ClusterRoleBindings().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "KUBERNETES_ERROR",
@@ -329,4 +374,3 @@ func FormatRules(rules []PolicyRule) string {
 
 	return strings.Join(parts, "; ")
 }
-

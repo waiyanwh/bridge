@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"net/http"
 
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/waiyan/bridge/internal/k8s"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"time"
 )
 
 // TopologyHandler handles topology-related API requests
@@ -62,7 +63,14 @@ func (h *TopologyHandler) GetTopology(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	clientset := h.k8sService.GetClientset()
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
 
 	nodes := []TopologyNode{}
 	edges := []TopologyEdge{}
@@ -123,11 +131,11 @@ func (h *TopologyHandler) GetTopology(c *gin.Context) {
 				Type:     "service",
 				Position: Position{X: 0, Y: 0},
 				Data: map[string]interface{}{
-					"label":     svc.Name,
-					"name":      svc.Name,
-					"kind":      "Service",
-					"namespace": svc.Namespace,
-					"type":      string(svc.Spec.Type),
+					"label":      svc.Name,
+					"name":       svc.Name,
+					"kind":       "Service",
+					"namespace":  svc.Namespace,
+					"type":       string(svc.Spec.Type),
 					"clusterIP":  svc.Spec.ClusterIP,
 					"ports":      getServicePorts(&svc),
 					"externalIP": getServiceExternalIP(&svc),
@@ -148,21 +156,21 @@ func (h *TopologyHandler) GetTopology(c *gin.Context) {
 	if err == nil {
 		for _, dep := range deployments.Items {
 			nodeID := fmt.Sprintf("deployment-%s", dep.Name)
-			
+
 			ready := int32(0)
 			if dep.Status.ReadyReplicas > 0 {
 				ready = dep.Status.ReadyReplicas
 			}
-			
+
 			nodes = append(nodes, TopologyNode{
 				ID:       nodeID,
 				Type:     "deployment",
 				Position: Position{X: 0, Y: 0},
 				Data: map[string]interface{}{
-					"label":     dep.Name,
-					"name":      dep.Name,
-					"kind":      "Deployment",
-					"namespace": dep.Namespace,
+					"label":        dep.Name,
+					"name":         dep.Name,
+					"kind":         "Deployment",
+					"namespace":    dep.Namespace,
 					"replicas":     dep.Status.Replicas,
 					"ready":        ready, // kept for graph compat
 					"readyCount":   ready,
@@ -180,7 +188,7 @@ func (h *TopologyHandler) GetTopology(c *gin.Context) {
 	if err == nil {
 		for _, pod := range pods.Items {
 			nodeID := fmt.Sprintf("pod-%s", pod.Name)
-			
+
 			status := string(pod.Status.Phase)
 			for _, cs := range pod.Status.ContainerStatuses {
 				if cs.State.Waiting != nil {
@@ -188,7 +196,7 @@ func (h *TopologyHandler) GetTopology(c *gin.Context) {
 					break
 				}
 			}
-			
+
 			nodes = append(nodes, TopologyNode{
 				ID:       nodeID,
 				Type:     "pod",
@@ -245,10 +253,10 @@ func (h *TopologyHandler) GetTopology(c *gin.Context) {
 	for podName, depName := range deploymentPods {
 		edgeID := fmt.Sprintf("dep-%s-to-pod-%s", depName, podName)
 		edges = append(edges, TopologyEdge{
-			ID:       edgeID,
-			Source:   fmt.Sprintf("deployment-%s", depName),
-			Target:   fmt.Sprintf("pod-%s", podName),
-			Type:     "smoothstep",
+			ID:     edgeID,
+			Source: fmt.Sprintf("deployment-%s", depName),
+			Target: fmt.Sprintf("pod-%s", podName),
+			Type:   "smoothstep",
 		})
 	}
 
@@ -344,4 +352,3 @@ func getAge(timestamp metav1.Time) string {
 	}
 	return fmt.Sprintf("%ds", int(duration.Seconds()))
 }
-

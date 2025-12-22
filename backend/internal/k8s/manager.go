@@ -49,6 +49,8 @@ type ClientManager struct {
 }
 
 // NewClientManager creates a new ClientManager
+// Uses lazy connection: if initial connection fails (e.g., expired SSO token),
+// the manager is still returned and will attempt to connect on first request.
 func NewClientManager() (*ClientManager, error) {
 	cm := &ClientManager{
 		// Initialize AWS SSO client for native EKS authentication
@@ -67,12 +69,44 @@ func NewClientManager() (*ClientManager, error) {
 	}
 	cm.kubeconfigPath = kubeconfig
 
-	// Load the initial config
+	// Try to load initial config, but don't fail if connection fails
+	// This enables lazy connection for expired SSO tokens
 	if err := cm.loadConfig(""); err != nil {
-		return nil, err
+		// Log warning but don't fail - will retry on first request
+		fmt.Printf("⚠️ [Startup] Initial connection failed (will retry on request): %v\n", err)
+		// Ensure we at least have the raw kubeconfig loaded for context listing
+		_ = cm.loadRawConfigOnly()
 	}
 
 	return cm, nil
+}
+
+// loadRawConfigOnly loads only the raw kubeconfig without establishing a connection.
+// This is used as a fallback when the initial connection fails (e.g., expired SSO token)
+// to still allow context listing and switching.
+func (cm *ClientManager) loadRawConfigOnly() error {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	// Check if kubeconfig file exists
+	if _, err := os.Stat(cm.kubeconfigPath); os.IsNotExist(err) {
+		return fmt.Errorf("kubeconfig not found at %s", cm.kubeconfigPath)
+	}
+
+	// Load raw kubeconfig
+	loadingRules := &clientcmd.ClientConfigLoadingRules{ExplicitPath: cm.kubeconfigPath}
+	configOverrides := &clientcmd.ConfigOverrides{}
+	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
+
+	// Get raw config for context listing
+	rawConfig, err := kubeConfig.RawConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load raw kubeconfig: %w", err)
+	}
+	cm.rawConfig = &rawConfig
+	cm.currentContext = rawConfig.CurrentContext
+
+	return nil
 }
 
 // loadConfig loads/reloads the kubeconfig using the specified context
@@ -328,17 +362,60 @@ func (cm *ClientManager) GetTokenExpiry() time.Time {
 }
 
 // GetClientset returns the current Kubernetes clientset
-func (cm *ClientManager) GetClientset() *kubernetes.Clientset {
+// If the client is not initialized (e.g., due to startup failure), it attempts to reconnect.
+func (cm *ClientManager) GetClientset() (*kubernetes.Clientset, error) {
 	cm.mu.RLock()
-	defer cm.mu.RUnlock()
-	return cm.clientset
+	clientset := cm.clientset
+	config := cm.config
+	currentCtx := cm.currentContext
+	cm.mu.RUnlock()
+
+	// Lazy reconnection: attempt to connect if not initialized
+	if clientset == nil || config == nil {
+		if currentCtx == "" {
+			// Try to load raw config to get current context
+			_ = cm.loadRawConfigOnly()
+			cm.mu.RLock()
+			currentCtx = cm.currentContext
+			cm.mu.RUnlock()
+		}
+		if err := cm.SwitchContext(currentCtx); err != nil {
+			return nil, fmt.Errorf("kubernetes client not initialized (please check SSO status): %w", err)
+		}
+		cm.mu.RLock()
+		clientset = cm.clientset
+		cm.mu.RUnlock()
+	}
+
+	return clientset, nil
 }
 
 // GetConfig returns the current REST config
-func (cm *ClientManager) GetConfig() *rest.Config {
+// If the config is not initialized (e.g., due to startup failure), it attempts to reconnect.
+func (cm *ClientManager) GetConfig() (*rest.Config, error) {
 	cm.mu.RLock()
-	defer cm.mu.RUnlock()
-	return cm.config
+	config := cm.config
+	clientset := cm.clientset
+	currentCtx := cm.currentContext
+	cm.mu.RUnlock()
+
+	// Lazy reconnection: attempt to connect if not initialized
+	if clientset == nil || config == nil {
+		if currentCtx == "" {
+			_ = cm.loadRawConfigOnly()
+			cm.mu.RLock()
+			currentCtx = cm.currentContext
+			cm.mu.RUnlock()
+		}
+		if err := cm.SwitchContext(currentCtx); err != nil {
+			return nil, fmt.Errorf("kubernetes client not initialized (please check SSO status): %w", err)
+		}
+		cm.mu.RLock()
+		config = cm.config
+		cm.mu.RUnlock()
+	}
+
+	return config, nil
 }
 
 // GetCurrentContext returns the name of the current context

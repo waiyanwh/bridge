@@ -205,7 +205,10 @@ func (h *ConfigHandler) RevealSecret(c *gin.Context) {
 // findConfigMapReferences finds all resources that reference a ConfigMap
 func (h *ConfigHandler) findConfigMapReferences(ctx context.Context, namespace, configMapName string) []ResourceReference {
 	references := []ResourceReference{}
-	clientset := h.k8sService.GetClientset()
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		return references // Return empty on client error
+	}
 
 	// Check Pods
 	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
@@ -269,7 +272,10 @@ func (h *ConfigHandler) findConfigMapReferences(ctx context.Context, namespace, 
 // findSecretReferences finds all resources that reference a Secret
 func (h *ConfigHandler) findSecretReferences(ctx context.Context, namespace, secretName string) []ResourceReference {
 	references := []ResourceReference{}
-	clientset := h.k8sService.GetClientset()
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		return references // Return empty on client error
+	}
 
 	// Check Pods
 	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})

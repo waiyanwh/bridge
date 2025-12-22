@@ -33,33 +33,33 @@ type ContainerInfo struct {
 
 // PodDetail represents full pod details for the detail view
 type PodDetail struct {
-	Name         string            `json:"name"`
-	Namespace    string            `json:"namespace"`
-	Status       string            `json:"status"`
-	IP           string            `json:"ip"`
-	Node         string            `json:"node"`
-	CreatedAt    string            `json:"createdAt"`
-	Age          string            `json:"age"`
-	Labels       map[string]string `json:"labels"`
-	Annotations  map[string]string `json:"annotations"`
-	Containers   []ContainerInfo   `json:"containers"`
-	Restarts     int32             `json:"restarts"`
+	Name        string            `json:"name"`
+	Namespace   string            `json:"namespace"`
+	Status      string            `json:"status"`
+	IP          string            `json:"ip"`
+	Node        string            `json:"node"`
+	CreatedAt   string            `json:"createdAt"`
+	Age         string            `json:"age"`
+	Labels      map[string]string `json:"labels"`
+	Annotations map[string]string `json:"annotations"`
+	Containers  []ContainerInfo   `json:"containers"`
+	Restarts    int32             `json:"restarts"`
 }
 
 // NodeInfo represents node information with resource metrics
 type NodeInfo struct {
-	Name             string `json:"name"`
-	Status           string `json:"status"`
-	Role             string `json:"role"`
-	Version          string `json:"version"`
-	CPUCapacity      int64  `json:"cpuCapacity"`      // in millicores
-	CPUAllocatable   int64  `json:"cpuAllocatable"`   // in millicores
-	CPUUsagePercent  int    `json:"cpuUsagePercent"`  // 0-100
-	MemoryCapacity   int64  `json:"memoryCapacity"`   // in bytes
-	MemoryAllocatable int64  `json:"memoryAllocatable"` // in bytes
-	MemoryUsagePercent int   `json:"memoryUsagePercent"` // 0-100
-	PodCount         int    `json:"podCount"`
-	Age              string `json:"age"`
+	Name               string `json:"name"`
+	Status             string `json:"status"`
+	Role               string `json:"role"`
+	Version            string `json:"version"`
+	CPUCapacity        int64  `json:"cpuCapacity"`        // in millicores
+	CPUAllocatable     int64  `json:"cpuAllocatable"`     // in millicores
+	CPUUsagePercent    int    `json:"cpuUsagePercent"`    // 0-100
+	MemoryCapacity     int64  `json:"memoryCapacity"`     // in bytes
+	MemoryAllocatable  int64  `json:"memoryAllocatable"`  // in bytes
+	MemoryUsagePercent int    `json:"memoryUsagePercent"` // 0-100
+	PodCount           int    `json:"podCount"`
+	Age                string `json:"age"`
 }
 
 // ConfigMapInfo represents a ConfigMap (list view)
@@ -105,12 +105,14 @@ func NewServiceLegacy(clientset *kubernetes.Clientset, config *rest.Config) *Ser
 }
 
 // GetClientset returns the underlying Kubernetes clientset
-func (s *Service) GetClientset() *kubernetes.Clientset {
+// Returns an error if the client is not initialized and reconnection fails
+func (s *Service) GetClientset() (*kubernetes.Clientset, error) {
 	return s.manager.GetClientset()
 }
 
 // GetConfig returns the underlying REST config
-func (s *Service) GetConfig() *rest.Config {
+// Returns an error if the config is not initialized and reconnection fails
+func (s *Service) GetConfig() (*rest.Config, error) {
 	return s.manager.GetConfig()
 }
 
@@ -122,7 +124,12 @@ func (s *Service) GetManager() *ClientManager {
 // ListPods lists all pods in the specified namespace
 // If namespace is empty, lists pods across all namespaces
 func (s *Service) ListPods(ctx context.Context, namespace string) ([]PodInfo, error) {
-	pods, err := s.GetClientset().CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+	clientset, err := s.GetClientset()
+	if err != nil {
+		return nil, fmt.Errorf("client not ready: %w", err)
+	}
+
+	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		if namespace == "" {
 			return nil, fmt.Errorf("failed to list pods in all namespaces: %w", err)
@@ -140,7 +147,12 @@ func (s *Service) ListPods(ctx context.Context, namespace string) ([]PodInfo, er
 
 // GetPod retrieves a single pod by name and namespace
 func (s *Service) GetPod(ctx context.Context, namespace, name string) (*corev1.Pod, error) {
-	pod, err := s.GetClientset().CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
+	clientset, err := s.GetClientset()
+	if err != nil {
+		return nil, fmt.Errorf("client not ready: %w", err)
+	}
+
+	pod, err := clientset.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pod %s/%s: %w", namespace, name, err)
 	}
@@ -196,7 +208,12 @@ func (s *Service) GetPodDetail(ctx context.Context, namespace, name string) (*Po
 
 // GetPodLogs returns a stream of logs for a pod
 func (s *Service) GetPodLogs(ctx context.Context, namespace, name string, opts *corev1.PodLogOptions) (io.ReadCloser, error) {
-	req := s.GetClientset().CoreV1().Pods(namespace).GetLogs(name, opts)
+	clientset, err := s.GetClientset()
+	if err != nil {
+		return nil, fmt.Errorf("client not ready: %w", err)
+	}
+
+	req := clientset.CoreV1().Pods(namespace).GetLogs(name, opts)
 	stream, err := req.Stream(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get logs for pod %s/%s: %w", namespace, name, err)
@@ -206,13 +223,18 @@ func (s *Service) GetPodLogs(ctx context.Context, namespace, name string, opts *
 
 // ListNodes lists all nodes with resource metrics
 func (s *Service) ListNodes(ctx context.Context) ([]NodeInfo, error) {
-	nodes, err := s.GetClientset().CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	clientset, err := s.GetClientset()
+	if err != nil {
+		return nil, fmt.Errorf("client not ready: %w", err)
+	}
+
+	nodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list nodes: %w", err)
 	}
 
 	// Get pod counts per node
-	pods, err := s.GetClientset().CoreV1().Pods("").List(ctx, metav1.ListOptions{})
+	pods, err := clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list pods: %w", err)
 	}
@@ -293,18 +315,18 @@ func nodeToNodeInfo(node *corev1.Node, podCount int) NodeInfo {
 	}
 
 	return NodeInfo{
-		Name:             node.Name,
-		Status:           status,
-		Role:             role,
-		Version:          node.Status.NodeInfo.KubeletVersion,
-		CPUCapacity:      cpuCapacity,
-		CPUAllocatable:   cpuAllocatable,
-		CPUUsagePercent:  cpuUsagePercent,
-		MemoryCapacity:   memoryCapacity,
-		MemoryAllocatable: memoryAllocatable,
+		Name:               node.Name,
+		Status:             status,
+		Role:               role,
+		Version:            node.Status.NodeInfo.KubeletVersion,
+		CPUCapacity:        cpuCapacity,
+		CPUAllocatable:     cpuAllocatable,
+		CPUUsagePercent:    cpuUsagePercent,
+		MemoryCapacity:     memoryCapacity,
+		MemoryAllocatable:  memoryAllocatable,
 		MemoryUsagePercent: memoryUsagePercent,
-		PodCount:         podCount,
-		Age:              formatAge(node.CreationTimestamp.Time),
+		PodCount:           podCount,
+		Age:                formatAge(node.CreationTimestamp.Time),
 	}
 }
 
@@ -314,7 +336,12 @@ func (s *Service) ListConfigMaps(ctx context.Context, namespace string) ([]Confi
 		namespace = "default"
 	}
 
-	configMaps, err := s.GetClientset().CoreV1().ConfigMaps(namespace).List(ctx, metav1.ListOptions{})
+	clientset, err := s.GetClientset()
+	if err != nil {
+		return nil, fmt.Errorf("client not ready: %w", err)
+	}
+
+	configMaps, err := clientset.CoreV1().ConfigMaps(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list configmaps in namespace %s: %w", namespace, err)
 	}
@@ -338,7 +365,12 @@ func (s *Service) ListConfigMaps(ctx context.Context, namespace string) ([]Confi
 
 // GetConfigMap retrieves a ConfigMap with its data
 func (s *Service) GetConfigMap(ctx context.Context, namespace, name string) (*ConfigMapInfo, error) {
-	cm, err := s.GetClientset().CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
+	clientset, err := s.GetClientset()
+	if err != nil {
+		return nil, fmt.Errorf("client not ready: %w", err)
+	}
+
+	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get configmap %s/%s: %w", namespace, name, err)
 	}
@@ -363,7 +395,12 @@ func (s *Service) ListSecrets(ctx context.Context, namespace string) ([]SecretIn
 		namespace = "default"
 	}
 
-	secrets, err := s.GetClientset().CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{})
+	clientset, err := s.GetClientset()
+	if err != nil {
+		return nil, fmt.Errorf("client not ready: %w", err)
+	}
+
+	secrets, err := clientset.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list secrets in namespace %s: %w", namespace, err)
 	}
@@ -388,7 +425,12 @@ func (s *Service) ListSecrets(ctx context.Context, namespace string) ([]SecretIn
 
 // GetSecret retrieves a Secret (raw bytes - caller should decode)
 func (s *Service) GetSecret(ctx context.Context, namespace, name string) (*corev1.Secret, error) {
-	secret, err := s.GetClientset().CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+	clientset, err := s.GetClientset()
+	if err != nil {
+		return nil, fmt.Errorf("client not ready: %w", err)
+	}
+
+	secret, err := clientset.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get secret %s/%s: %w", namespace, name, err)
 	}

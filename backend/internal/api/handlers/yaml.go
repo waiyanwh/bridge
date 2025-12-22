@@ -22,7 +22,12 @@ type YAMLHandler struct {
 
 // NewYAMLHandler creates a new YAMLHandler
 func NewYAMLHandler(k8sService *k8s.Service) (*YAMLHandler, error) {
-	dynamicClient, err := dynamic.NewForConfig(k8sService.GetConfig())
+	config, err := k8sService.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}

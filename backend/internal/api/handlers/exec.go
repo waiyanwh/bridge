@@ -159,7 +159,13 @@ func (h *ExecHandler) Exec(c *gin.Context) {
 	}
 
 	// Create the exec request
-	req := h.k8sService.GetClientset().CoreV1().RESTClient().Post().
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		h.sendError(conn, "Client not ready: "+err.Error())
+		return
+	}
+
+	req := clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
 		Namespace(namespace).
@@ -174,7 +180,12 @@ func (h *ExecHandler) Exec(c *gin.Context) {
 		}, scheme.ParameterCodec)
 
 	// Create SPDY executor
-	config := h.k8sService.GetConfig()
+	config, err := h.k8sService.GetConfig()
+	if err != nil {
+		h.sendError(conn, "Config not ready: "+err.Error())
+		return
+	}
+
 	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
 	if err != nil {
 		h.sendError(conn, "Failed to create executor: "+err.Error())

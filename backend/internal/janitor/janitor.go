@@ -66,7 +66,11 @@ func (j *Janitor) run() {
 
 func (j *Janitor) cleanup() {
 	ctx := context.Background()
-	clientset := j.k8sService.GetClientset()
+	clientset, err := j.k8sService.GetClientset()
+	if err != nil {
+		log.Printf("[Janitor] Client not ready, skipping cleanup: %v", err)
+		return
+	}
 
 	// List all ServiceAccounts with Bridge label across all namespaces
 	labelSelector := LabelManagedBy + "=" + ManagedByBridge
@@ -116,7 +120,11 @@ func (j *Janitor) cleanup() {
 }
 
 func (j *Janitor) revokeAccess(ctx context.Context, namespace, saName string) {
-	clientset := j.k8sService.GetClientset()
+	clientset, err := j.k8sService.GetClientset()
+	if err != nil {
+		log.Printf("[Janitor] Client not ready, cannot revoke access: %v", err)
+		return
+	}
 
 	// Derive resource names from SA name
 	baseName := strings.TrimSuffix(saName, "-sa")

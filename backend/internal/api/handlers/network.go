@@ -84,7 +84,16 @@ func (h *NetworkHandler) ListServices(c *gin.Context) {
 		ns = namespace
 	}
 
-	serviceList, err := h.k8sService.GetClientset().CoreV1().Services(ns).List(context.Background(), metav1.ListOptions{})
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	serviceList, err := clientset.CoreV1().Services(ns).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "KUBERNETES_ERROR",
@@ -139,7 +148,16 @@ func (h *NetworkHandler) ListIngresses(c *gin.Context) {
 		ns = namespace
 	}
 
-	ingressList, err := h.k8sService.GetClientset().NetworkingV1().Ingresses(ns).List(context.Background(), metav1.ListOptions{})
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	ingressList, err := clientset.NetworkingV1().Ingresses(ns).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "KUBERNETES_ERROR",
@@ -207,7 +225,16 @@ func (h *NetworkHandler) ListNetworkPolicies(c *gin.Context) {
 		ns = namespace
 	}
 
-	npList, err := h.k8sService.GetClientset().NetworkingV1().NetworkPolicies(ns).List(context.Background(), metav1.ListOptions{})
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	npList, err := clientset.NetworkingV1().NetworkPolicies(ns).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "KUBERNETES_ERROR",

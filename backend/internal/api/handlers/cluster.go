@@ -39,16 +39,16 @@ type HPAInfo struct {
 
 // EventInfo represents a Kubernetes Event
 type EventInfo struct {
-	Type           string `json:"type"`
-	Reason         string `json:"reason"`
-	ObjectKind     string `json:"objectKind"`
-	ObjectName     string `json:"objectName"`
-	ObjectNS       string `json:"objectNs"`
-	Message        string `json:"message"`
-	Count          int32  `json:"count"`
-	FirstSeen      string `json:"firstSeen"`
-	LastSeen       string `json:"lastSeen"`
-	LastSeenAge    string `json:"lastSeenAge"`
+	Type            string `json:"type"`
+	Reason          string `json:"reason"`
+	ObjectKind      string `json:"objectKind"`
+	ObjectName      string `json:"objectName"`
+	ObjectNS        string `json:"objectNs"`
+	Message         string `json:"message"`
+	Count           int32  `json:"count"`
+	FirstSeen       string `json:"firstSeen"`
+	LastSeen        string `json:"lastSeen"`
+	LastSeenAge     string `json:"lastSeenAge"`
 	SourceComponent string `json:"sourceComponent"`
 }
 
@@ -77,7 +77,16 @@ func (h *ClusterHandler) ListHPA(c *gin.Context) {
 		ns = namespace
 	}
 
-	hpaList, err := h.k8sService.GetClientset().AutoscalingV2().HorizontalPodAutoscalers(ns).List(context.Background(), metav1.ListOptions{})
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	hpaList, err := clientset.AutoscalingV2().HorizontalPodAutoscalers(ns).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "KUBERNETES_ERROR",
@@ -158,7 +167,16 @@ func (h *ClusterHandler) ListEvents(c *gin.Context) {
 		ns = namespace
 	}
 
-	eventList, err := h.k8sService.GetClientset().CoreV1().Events(ns).List(context.Background(), metav1.ListOptions{})
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	eventList, err := clientset.CoreV1().Events(ns).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "KUBERNETES_ERROR",

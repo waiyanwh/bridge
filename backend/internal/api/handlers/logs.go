@@ -173,7 +173,11 @@ func (h *LogsHandler) StreamAggregatedLogs(c *gin.Context) {
 	}()
 
 	// List pods matching the selector
-	clientset := h.k8sService.GetClientset()
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		h.sendError(conn, "Client not ready: "+err.Error())
+		return
+	}
 	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: selector,
 	})
@@ -195,10 +199,10 @@ func (h *LogsHandler) StreamAggregatedLogs(c *gin.Context) {
 	for i, pod := range pods.Items {
 		podNames[i] = pod.Name
 	}
-	
+
 	initMsg := map[string]interface{}{
-		"type": "init",
-		"pods": podNames,
+		"type":  "init",
+		"pods":  podNames,
 		"count": len(podNames),
 	}
 	if err := conn.WriteJSON(initMsg); err != nil {
@@ -277,7 +281,7 @@ func (h *LogsHandler) streamPodLogs(ctx context.Context, namespace, podName, con
 			return
 		default:
 			line := scanner.Text()
-			
+
 			// Parse timestamp if present (format: 2006-01-02T15:04:05.999999999Z message)
 			timestamp := ""
 			message := line
