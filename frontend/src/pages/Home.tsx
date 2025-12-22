@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import {
     Users,
     Clock,
-
     Shield,
     ExternalLink,
     BookOpen,
@@ -12,12 +11,16 @@ import {
     Server,
     CheckCircle2,
     AlertTriangle,
+    AlertCircle,
     Activity,
     Box,
     Cpu,
+    WifiOff,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { ResourceGauge } from '@/components/dashboard/ResourceGauge'
+
+type ClusterStatus = 'healthy' | 'degraded' | 'disconnected' | 'unknown'
 
 const API_BASE = '/api/v1'
 
@@ -83,7 +86,47 @@ export function Home() {
     const accessStats = stats?.accessStats || { activeUsers: 0, expiringSoon: 0, permanent: 0 }
     const namespaceCount = stats?.namespaceCount || 0
 
-    const isHealthy = clusterHealth.status === 'Healthy'
+    // Determine actual cluster status - 0 nodes means disconnected/unreachable
+    const getClusterStatus = (): ClusterStatus => {
+        if (error) return 'disconnected'
+        if (clusterHealth.totalNodes === 0) return 'disconnected'
+        if (clusterHealth.status === 'Healthy') return 'healthy'
+        if (clusterHealth.status === 'Degraded') return 'degraded'
+        return 'unknown'
+    }
+    
+    const clusterStatus = getClusterStatus()
+    const isDisconnected = clusterStatus === 'disconnected'
+    const isDegraded = clusterStatus === 'degraded'
+    
+    // Display text for cluster status
+    const getStatusText = () => {
+        switch (clusterStatus) {
+            case 'healthy': return 'Healthy'
+            case 'degraded': return 'Degraded'
+            case 'disconnected': return 'Disconnected'
+            default: return 'Unknown'
+        }
+    }
+    
+    // Status color classes
+    const getStatusColor = () => {
+        switch (clusterStatus) {
+            case 'healthy': return 'text-green-400'
+            case 'degraded': return 'text-amber-400'
+            case 'disconnected': return 'text-red-400'
+            default: return 'text-muted-foreground'
+        }
+    }
+    
+    const getDotColor = () => {
+        switch (clusterStatus) {
+            case 'healthy': return 'bg-green-500'
+            case 'degraded': return 'bg-amber-500'
+            case 'disconnected': return 'bg-red-500'
+            default: return 'bg-zinc-500'
+        }
+    }
 
     return (
         <div className="space-y-8">
@@ -123,15 +166,20 @@ export function Home() {
                         <div className="space-y-2">
                             <div className="flex items-center gap-3">
                                 <div className="relative">
-                                    <div className={`h-3 w-3 rounded-full ${isHealthy ? 'bg-green-500' : 'bg-amber-500'}`} />
-                                    <div className={`absolute inset-0 h-3 w-3 rounded-full ${isHealthy ? 'bg-green-500' : 'bg-amber-500'} animate-ping opacity-75`} />
+                                    <div className={`h-3 w-3 rounded-full ${getDotColor()}`} />
+                                    {!isDisconnected && (
+                                        <div className={`absolute inset-0 h-3 w-3 rounded-full ${getDotColor()} animate-ping opacity-75`} />
+                                    )}
                                 </div>
-                                <span className={`text-2xl font-bold ${isHealthy ? 'text-green-400' : 'text-amber-400'}`}>
-                                    {clusterHealth.status}
+                                <span className={`text-2xl font-bold ${getStatusColor()}`}>
+                                    {getStatusText()}
                                 </span>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                {clusterHealth.readyNodes}/{clusterHealth.totalNodes} nodes ready
+                                {isDisconnected 
+                                    ? 'Unable to reach cluster' 
+                                    : `${clusterHealth.readyNodes}/${clusterHealth.totalNodes} nodes ready`
+                                }
                             </p>
                         </div>
 
@@ -291,18 +339,37 @@ export function Home() {
             {/* Cluster Status Summary */}
             <div className="rounded-lg border bg-card p-6">
                 <div className="flex items-center gap-3 mb-4">
-                    <CheckCircle2 className={`h-5 w-5 ${isHealthy ? 'text-green-400' : 'text-amber-400'}`} />
+                    {isDisconnected ? (
+                        <WifiOff className="h-5 w-5 text-red-400" />
+                    ) : isDegraded ? (
+                        <AlertCircle className="h-5 w-5 text-amber-400" />
+                    ) : (
+                        <CheckCircle2 className="h-5 w-5 text-green-400" />
+                    )}
                     <h2 className="text-lg font-semibold">
-                        {isHealthy ? 'All Systems Operational' : 'Some Systems Degraded'}
+                        {isDisconnected 
+                            ? 'Cluster Unreachable' 
+                            : isDegraded 
+                                ? 'Some Systems Degraded' 
+                                : 'All Systems Operational'
+                        }
                     </h2>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="p-4 rounded-lg bg-muted/30 text-center">
-                        <div className="text-2xl font-bold">{clusterHealth.totalNodes}</div>
+                        <div className={`text-2xl font-bold ${isDisconnected ? 'text-red-400' : ''}`}>
+                            {clusterHealth.totalNodes}
+                        </div>
                         <div className="text-sm text-muted-foreground">Total Nodes</div>
                     </div>
                     <div className="p-4 rounded-lg bg-muted/30 text-center">
-                        <div className={`text-2xl font-bold ${clusterHealth.readyNodes === clusterHealth.totalNodes ? 'text-green-400' : 'text-amber-400'}`}>
+                        <div className={`text-2xl font-bold ${
+                            isDisconnected 
+                                ? 'text-red-400' 
+                                : clusterHealth.readyNodes === clusterHealth.totalNodes 
+                                    ? 'text-green-400' 
+                                    : 'text-amber-400'
+                        }`}>
                             {clusterHealth.readyNodes}
                         </div>
                         <div className="text-sm text-muted-foreground">Ready Nodes</div>

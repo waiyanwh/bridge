@@ -36,7 +36,8 @@ import {
     TopologyPage,
     Home,
     CRDListPage,
-    CRDExplorerPage
+    CRDExplorerPage,
+    CloudAccountsPage
 } from '@/pages'
 
 // Create a query client
@@ -101,6 +102,7 @@ function AppRoutes() {
                     <Route path="/namespaces/:namespace" element={<NamespaceDetailPage />} />
                     <Route path="/events" element={<EventsPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/cloud-accounts" element={<CloudAccountsPage />} />
 
                     {/* CRD routes */}
                     <Route path="/crds" element={<CRDExplorerPage />} />

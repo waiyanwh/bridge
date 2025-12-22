@@ -44,6 +44,9 @@ func SetupRoutes(router *gin.Engine, k8sService *k8s.Service) {
 		log.Printf("Warning: Failed to create CRD handler: %v", err)
 	}
 
+	awsHandler := handlers.NewAWSHandler(k8sService)
+	awsSSOHandler := handlers.NewAWSSSOHandler(k8sService)
+
 	// API v1 group
 	v1 := router.Group("/api/v1")
 	{
@@ -149,6 +152,44 @@ func SetupRoutes(router *gin.Engine, k8sService *k8s.Service) {
 			v1.GET("/crds", crdHandler.ListCRDGroups)
 			v1.GET("/custom/:group/:version/:resource", crdHandler.ListCustomResources)
 		}
+
+		// AWS profile endpoints (legacy - for backward compatibility)
+		v1.GET("/aws/profiles", awsHandler.ListAWSProfiles)
+		v1.POST("/aws/sso-login", awsHandler.SSOLogin)
+
+		// AWS SSO sync endpoints (legacy)
+		v1.GET("/aws/sso/sessions", awsHandler.ListSSOSessions)
+		v1.POST("/aws/sso/sync", awsHandler.SyncSSOAccounts)
+		v1.POST("/aws/sso/login", awsHandler.SSOLoginWithSession)
+
+		// System/context AWS profile mapping (legacy)
+		v1.GET("/system/context/aws-mappings", awsHandler.ListContextAWSMappings)
+		v1.POST("/system/context/aws-profile", awsHandler.SetContextAWSProfile)
+
+		// AWS SSO Isolated Mode (Leapp-style) - new endpoints
+		// Device authorization flow
+		v1.POST("/aws/sso/device/start", awsSSOHandler.StartDeviceAuth)
+		v1.POST("/aws/sso/device/complete", awsSSOHandler.CompleteDeviceAuth)
+		v1.GET("/aws/sso/device/status", awsSSOHandler.CheckAuthStatus)
+
+		// Session management (Bridge-managed, isolated from ~/.aws/config)
+		v1.GET("/aws/sso/bridge/sessions", awsSSOHandler.ListSessions)
+		v1.POST("/aws/sso/bridge/sessions", awsSSOHandler.AddSession)
+		v1.POST("/aws/sso/bridge/sessions/:name/sync", awsSSOHandler.SyncSession)
+		v1.DELETE("/aws/sso/bridge/sessions/:name", awsSSOHandler.DeleteSession)
+
+		// Context to AWS role mapping (Bridge-managed)
+		v1.GET("/aws/sso/bridge/context-mappings", awsSSOHandler.ListContextMappings)
+		v1.POST("/aws/sso/bridge/context-mapping", awsSSOHandler.MapContext)
+		// Use wildcard (*) to capture context names containing slashes (e.g., ARNs)
+		v1.DELETE("/aws/sso/bridge/context-mapping/*contextName", awsSSOHandler.DeleteContextMapping)
+
+		// Native EKS token generation (bypasses aws-iam-authenticator)
+		v1.POST("/aws/sso/eks-token", awsSSOHandler.GenerateEKSToken)
+
+		// Debug endpoint for troubleshooting auth issues
+		// Use wildcard (*) to capture context names containing slashes (e.g., ARNs)
+		v1.GET("/aws/sso/debug/*contextName", awsSSOHandler.DebugContextAuth)
 	}
 
 	// Health check endpoint
