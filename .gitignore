@@ -33,7 +33,7 @@ go.work
 go.work.sum
 
 # ===========================================
-# Node.js / npm
+# Node.js / npm / TypeScript
 # ===========================================
 npm-debug.log*
 yarn-debug.log*
@@ -42,6 +42,7 @@ pnpm-debug.log*
 .npm
 .pnp
 .pnp.js
+*.tsbuildinfo
 
 # ===========================================
 # IDE / Editors
