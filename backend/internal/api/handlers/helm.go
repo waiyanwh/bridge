@@ -27,7 +27,10 @@ type BridgeRESTClientGetter struct {
 // ToRESTConfig returns the authenticated REST config from Bridge's ClientManager
 // ⚡️ MAGIC: This returns the config with the injected SSO Bearer Token
 func (b *BridgeRESTClientGetter) ToRESTConfig() (*rest.Config, error) {
-	config := b.clientManager.GetConfig()
+	config, err := b.clientManager.GetConfig()
+	if err != nil {
+		return nil, err
+	}
 	if config == nil {
 		return nil, fmt.Errorf("no REST config available from ClientManager")
 	}

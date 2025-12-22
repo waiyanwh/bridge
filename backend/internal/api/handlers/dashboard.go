@@ -67,7 +67,14 @@ type nodeMetricsItem struct {
 // GetStats handles GET /api/v1/dashboard/stats
 func (h *DashboardHandler) GetStats(c *gin.Context) {
 	ctx := c.Request.Context()
-	clientset := h.k8sService.GetClientset()
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
 
 	// Get cluster health & total capacity
 	clusterHealth := ClusterHealthStatus{
@@ -135,7 +142,7 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 				// Convert to GiB for display if large enough, else MiB
 				usageGi := float64(totalMemUsage) / (1024 * 1024 * 1024)
 				capGi := float64(totalMemCapacity) / (1024 * 1024 * 1024)
-				
+
 				memUsage = &ResourceUsage{
 					Usage:      fmt.Sprintf("%.1fGi", usageGi),
 					Capacity:   fmt.Sprintf("%.1fGi", capGi),

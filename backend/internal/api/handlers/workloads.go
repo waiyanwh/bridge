@@ -48,14 +48,14 @@ type StatefulSetInfo struct {
 
 // DaemonSetInfo represents a DaemonSet
 type DaemonSetInfo struct {
-	Name         string   `json:"name"`
-	Namespace    string   `json:"namespace"`
-	Desired      int32    `json:"desired"`
-	Current      int32    `json:"current"`
-	Ready        int32    `json:"ready"`
-	Available    int32    `json:"available"`
-	Images       []string `json:"images"`
-	Age          string   `json:"age"`
+	Name      string   `json:"name"`
+	Namespace string   `json:"namespace"`
+	Desired   int32    `json:"desired"`
+	Current   int32    `json:"current"`
+	Ready     int32    `json:"ready"`
+	Available int32    `json:"available"`
+	Images    []string `json:"images"`
+	Age       string   `json:"age"`
 }
 
 // CronJobInfo represents a CronJob
@@ -107,7 +107,16 @@ func (h *WorkloadHandler) ListDeployments(c *gin.Context) {
 	listOpts := metav1.ListOptions{}
 
 	if namespace == "" || namespace == "all" {
-		deploymentList, listErr := h.k8sService.GetClientset().AppsV1().Deployments("").List(context.Background(), listOpts)
+		clientset, err := h.k8sService.GetClientset()
+		if err != nil {
+			c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+				Error:   "CLIENT_NOT_READY",
+				Message: err.Error(),
+			})
+			return
+		}
+
+		deploymentList, listErr := clientset.AppsV1().Deployments("").List(context.Background(), listOpts)
 		if listErr != nil {
 			c.JSON(http.StatusInternalServerError, ErrorResponse{
 				Error:   "KUBERNETES_ERROR",
@@ -143,7 +152,16 @@ func (h *WorkloadHandler) ListDeployments(c *gin.Context) {
 		return
 	}
 
-	deploymentList, err := h.k8sService.GetClientset().AppsV1().Deployments(namespace).List(context.Background(), listOpts)
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	deploymentList, err := clientset.AppsV1().Deployments(namespace).List(context.Background(), listOpts)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "KUBERNETES_ERROR",
@@ -197,7 +215,16 @@ func (h *WorkloadHandler) ListStatefulSets(c *gin.Context) {
 		ns = namespace
 	}
 
-	statefulSetList, err := h.k8sService.GetClientset().AppsV1().StatefulSets(ns).List(context.Background(), listOpts)
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	statefulSetList, err := clientset.AppsV1().StatefulSets(ns).List(context.Background(), listOpts)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "KUBERNETES_ERROR",
@@ -253,7 +280,16 @@ func (h *WorkloadHandler) ListDaemonSets(c *gin.Context) {
 		ns = namespace
 	}
 
-	daemonSetList, err := h.k8sService.GetClientset().AppsV1().DaemonSets(ns).List(context.Background(), listOpts)
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	daemonSetList, err := clientset.AppsV1().DaemonSets(ns).List(context.Background(), listOpts)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "KUBERNETES_ERROR",
@@ -305,7 +341,16 @@ func (h *WorkloadHandler) ListCronJobs(c *gin.Context) {
 		ns = namespace
 	}
 
-	cronJobList, err := h.k8sService.GetClientset().BatchV1().CronJobs(ns).List(context.Background(), listOpts)
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	cronJobList, err := clientset.BatchV1().CronJobs(ns).List(context.Background(), listOpts)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "KUBERNETES_ERROR",

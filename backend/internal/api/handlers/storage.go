@@ -87,7 +87,16 @@ func (h *StorageHandler) ListPVCs(c *gin.Context) {
 		ns = namespace
 	}
 
-	pvcList, err := h.k8sService.GetClientset().CoreV1().PersistentVolumeClaims(ns).List(context.Background(), metav1.ListOptions{})
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	pvcList, err := clientset.CoreV1().PersistentVolumeClaims(ns).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "KUBERNETES_ERROR",
@@ -161,7 +170,16 @@ func (h *StorageHandler) ListPVCs(c *gin.Context) {
 
 // ListPVs handles GET /api/v1/pvs
 func (h *StorageHandler) ListPVs(c *gin.Context) {
-	pvList, err := h.k8sService.GetClientset().CoreV1().PersistentVolumes().List(context.Background(), metav1.ListOptions{})
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	pvList, err := clientset.CoreV1().PersistentVolumes().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "KUBERNETES_ERROR",
@@ -223,7 +241,16 @@ func (h *StorageHandler) ListPVs(c *gin.Context) {
 
 // ListStorageClasses handles GET /api/v1/storageclasses
 func (h *StorageHandler) ListStorageClasses(c *gin.Context) {
-	scList, err := h.k8sService.GetClientset().StorageV1().StorageClasses().List(context.Background(), metav1.ListOptions{})
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	scList, err := clientset.StorageV1().StorageClasses().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "KUBERNETES_ERROR",

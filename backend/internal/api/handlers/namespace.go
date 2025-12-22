@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/gin-gonic/gin"	
+	"github.com/gin-gonic/gin"
 	"github.com/waiyan/bridge/internal/k8s"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,7 +30,16 @@ type ListNamespacesResponse struct {
 
 // ListNamespaces handles GET /api/v1/namespaces
 func (h *NamespaceHandler) ListNamespaces(c *gin.Context) {
-	namespaces, err := h.k8sService.GetClientset().CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	namespaces, err := clientset.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "KUBERNETES_ERROR",
@@ -77,7 +86,16 @@ type ResourceQuotasResponse struct {
 func (h *NamespaceHandler) GetResourceQuotas(c *gin.Context) {
 	namespace := c.Param("namespace")
 
-	quotas, err := h.k8sService.GetClientset().CoreV1().ResourceQuotas(namespace).List(context.Background(), metav1.ListOptions{})
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	quotas, err := clientset.CoreV1().ResourceQuotas(namespace).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "KUBERNETES_ERROR",

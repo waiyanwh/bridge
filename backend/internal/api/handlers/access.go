@@ -20,11 +20,11 @@ import (
 
 // Bridge label constants
 const (
-	LabelManagedBy     = "app.kubernetes.io/managed-by"
-	LabelAccessUser    = "bridge.io/access-user"
-	LabelCreatedAt     = "bridge.io/created-at"
+	LabelManagedBy      = "app.kubernetes.io/managed-by"
+	LabelAccessUser     = "bridge.io/access-user"
+	LabelCreatedAt      = "bridge.io/created-at"
 	AnnotationExpiresAt = "bridge.io/expires-at"
-	ManagedByBridge    = "bridge"
+	ManagedByBridge     = "bridge"
 )
 
 // AccessHandler handles RBAC and access-related HTTP requests
@@ -118,7 +118,7 @@ func parseDuration(durationStr string) (time.Duration, error) {
 	if durationStr == "" || durationStr == "0" {
 		return 0, nil // Permanent access
 	}
-	
+
 	// Handle days (not natively supported by time.ParseDuration)
 	if strings.HasSuffix(durationStr, "d") {
 		daysStr := strings.TrimSuffix(durationStr, "d")
@@ -129,7 +129,7 @@ func parseDuration(durationStr string) (time.Duration, error) {
 		// Convert hours to days (multiply by 24 since we parsed as hours)
 		return days * 24, nil
 	}
-	
+
 	return time.ParseDuration(durationStr)
 }
 
@@ -186,8 +186,15 @@ func (h *AccessHandler) CreateAccess(c *gin.Context) {
 	isPermanent := duration == 0
 
 	ctx := c.Request.Context()
-	clientset := h.k8sService.GetClientset()
-	
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
+
 	// Sanitize the user label for use in resource names
 	baseName := sanitizeName(req.UserLabel)
 	saName := baseName + "-sa"
@@ -218,7 +225,7 @@ func (h *AccessHandler) CreateAccess(c *gin.Context) {
 			Annotations: annotations,
 		},
 	}
-	
+
 	_, err = clientset.CoreV1().ServiceAccounts(req.Namespace).Create(ctx, sa, metav1.CreateOptions{})
 	if err != nil {
 		// Check if already exists
@@ -347,7 +354,7 @@ func (h *AccessHandler) CreateAccess(c *gin.Context) {
 	} else {
 		// Step D (Temporary): Use TokenRequest API for ephemeral token
 		expirationSeconds := int64(duration.Seconds())
-		
+
 		tokenRequest := &authv1.TokenRequest{
 			Spec: authv1.TokenRequestSpec{
 				ExpirationSeconds: &expirationSeconds,
@@ -367,7 +374,10 @@ func (h *AccessHandler) CreateAccess(c *gin.Context) {
 		token = tokenResponse.Status.Token
 
 		// Get CA cert from cluster config
-		caCert = string(h.k8sService.GetConfig().CAData)
+		config, getConfigErr := h.k8sService.GetConfig()
+		if getConfigErr == nil {
+			caCert = string(config.CAData)
+		}
 		if caCert == "" {
 			// Try to read from a secret in kube-system
 			secret, err := clientset.CoreV1().Secrets("kube-system").Get(ctx, "default-token", metav1.GetOptions{})
@@ -407,11 +417,18 @@ func (h *AccessHandler) CreateAccess(c *gin.Context) {
 // ListAccess handles GET /api/v1/bridge/access
 func (h *AccessHandler) ListAccess(c *gin.Context) {
 	ctx := c.Request.Context()
-	clientset := h.k8sService.GetClientset()
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
 
 	// List all ServiceAccounts with Bridge label across all namespaces
 	labelSelector := fmt.Sprintf("%s=%s", LabelManagedBy, ManagedByBridge)
-	
+
 	saList, err := clientset.CoreV1().ServiceAccounts("").List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
 	})
@@ -473,7 +490,14 @@ func (h *AccessHandler) RevokeAccess(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	clientset := h.k8sService.GetClientset()
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
 
 	// Derive resource names
 	saName := name + "-sa"
@@ -546,7 +570,11 @@ func (h *AccessHandler) RevokeAccess(c *gin.Context) {
 // constructKubeconfig builds a kubeconfig YAML string
 func (h *AccessHandler) constructKubeconfig(ctx context.Context, userLabel, namespace, token, caCert string) (string, error) {
 	// Get the cluster server URL from the current config
-	serverURL := h.k8sService.GetConfig().Host
+	config, err := h.k8sService.GetConfig()
+	if err != nil {
+		return "", fmt.Errorf("config not ready: %w", err)
+	}
+	serverURL := config.Host
 
 	// Base64 encode the CA certificate (kubeconfig expects base64 encoded data)
 	caCertBase64 := base64.StdEncoding.EncodeToString([]byte(caCert))
@@ -623,7 +651,14 @@ func (h *AccessHandler) GetKubeconfig(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	clientset := h.k8sService.GetClientset()
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
 
 	// Derive resource names
 	saName := name + "-sa"
@@ -718,7 +753,10 @@ func (h *AccessHandler) GetKubeconfig(c *gin.Context) {
 
 	// Get CA cert if not already retrieved
 	if caCert == "" {
-		caCert = string(h.k8sService.GetConfig().CAData)
+		config, configErr := h.k8sService.GetConfig()
+		if configErr == nil {
+			caCert = string(config.CAData)
+		}
 	}
 
 	// Construct the kubeconfig

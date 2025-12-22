@@ -27,7 +27,10 @@ type CRDHandler struct {
 
 // NewCRDHandler creates a new CRDHandler
 func NewCRDHandler(k8sService *k8s.Service) (*CRDHandler, error) {
-	config := k8sService.GetConfig()
+	config, err := k8sService.GetConfig()
+	if err != nil {
+		return nil, err
+	}
 
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {

@@ -57,7 +57,14 @@ func (h *WorkloadActionsHandler) RestartWorkload(c *gin.Context) {
 	}
 
 	ctx := context.Background()
-	clientset := h.k8sService.GetClientset()
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
 
 	// Patch data to trigger restart
 	restartPatch := map[string]interface{}{
@@ -141,7 +148,14 @@ func (h *WorkloadActionsHandler) ScaleWorkload(c *gin.Context) {
 	}
 
 	ctx := context.Background()
-	clientset := h.k8sService.GetClientset()
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
 
 	// Patch data for scaling
 	scalePatch := map[string]interface{}{
@@ -214,7 +228,14 @@ func (h *WorkloadActionsHandler) SuspendCronJob(c *gin.Context) {
 	}
 
 	ctx := context.Background()
-	clientset := h.k8sService.GetClientset()
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Error:   "CLIENT_NOT_READY",
+			Message: err.Error(),
+		})
+		return
+	}
 
 	// Patch data for suspend
 	suspendPatch := map[string]interface{}{

@@ -30,8 +30,8 @@ func SetupRoutes(router *gin.Engine, k8sService *k8s.Service) {
 	workloadActionsHandler := handlers.NewWorkloadActionsHandler(k8sService)
 	dashboardHandler := handlers.NewDashboardHandler(k8sService)
 
-	// Create tunnel manager and handler
-	tunnelManager := tunnel.NewManager(k8sService.GetClientset(), k8sService.GetConfig())
+	// Create tunnel manager and handler (uses lazy client access)
+	tunnelManager := tunnel.NewManager(k8sService)
 	tunnelHandler := handlers.NewTunnelHandler(tunnelManager)
 
 	yamlHandler, err := handlers.NewYAMLHandler(k8sService)
