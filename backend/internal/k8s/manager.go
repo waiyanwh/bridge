@@ -201,20 +201,10 @@ func (cm *ClientManager) loadConfig(contextName string) error {
 			config.ExecProvider = nil
 		}
 	} else {
-		// ⚠️ [Fallback Path] No Bridge mapping exists
-		// 🚫 SAFETY LOCK: Block AWS CLI to prevent ugly "Unable to locate credentials" spam
-		// This check happens BEFORE client-go tries to execute the binary
-		if config.ExecProvider != nil {
-			execCmd := config.ExecProvider.Command
-			// Check for both 'aws' and 'aws-iam-authenticator' commands
-			if execCmd == "aws" || strings.Contains(execCmd, "aws-iam-authenticator") || strings.HasSuffix(execCmd, "/aws") {
-				log.Printf("🚫 [Auth] Blocked '%s' for context '%s' (Bridge Identity mapping required)", execCmd, cm.currentContext)
-				// Disable the exec provider - this prevents the AWS CLI from being called
-				// and avoids the ugly "Unable to locate credentials" stderr spam
-				config.ExecProvider = nil
-				// The clientset will fail gracefully with a clean "Unauthorized" error
-			}
-		}
+		// ℹ️ [Passthrough Mode] No Bridge mapping exists
+		// Let client-go handle authentication naturally.
+		// This supports Minikube, Docker Desktop, and users with their own ~/.aws/credentials.
+		log.Printf("ℹ️ [Auth] No Bridge Identity for '%s'. Using standard kubeconfig auth.", cm.currentContext)
 	}
 
 	cm.config = config
