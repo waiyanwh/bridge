@@ -39,10 +39,7 @@ func SetupRoutes(router *gin.Engine, k8sService *k8s.Service) {
 		log.Printf("Warning: Failed to create YAML handler: %v", err)
 	}
 
-	crdHandler, err := handlers.NewCRDHandler(k8sService)
-	if err != nil {
-		log.Printf("Warning: Failed to create CRD handler: %v", err)
-	}
+	crdHandler := handlers.NewCRDHandler(k8sService)
 
 	awsHandler := handlers.NewAWSHandler(k8sService)
 	awsSSOHandler := handlers.NewAWSSSOHandler(k8sService)
@@ -148,10 +145,8 @@ func SetupRoutes(router *gin.Engine, k8sService *k8s.Service) {
 		v1.GET("/resourcequotas/:namespace", namespaceHandler.GetResourceQuotas)
 
 		// CRD endpoints (Custom Resource Definitions)
-		if crdHandler != nil {
-			v1.GET("/crds", crdHandler.ListCRDGroups)
-			v1.GET("/custom/:group/:version/:resource", crdHandler.ListCustomResources)
-		}
+		v1.GET("/crds", crdHandler.ListCRDGroups)
+		v1.GET("/custom/:group/:version/:resource", crdHandler.ListCustomResources)
 
 		// AWS profile endpoints (legacy - for backward compatibility)
 		v1.GET("/aws/profiles", awsHandler.ListAWSProfiles)
