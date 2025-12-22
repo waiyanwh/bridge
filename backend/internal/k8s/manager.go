@@ -122,59 +122,63 @@ func (cm *ClientManager) loadConfig(contextName string) error {
 
 	// ⚡️ CHECK FOR SSO MAPPING - Native EKS Authentication
 	// If this context is mapped to an AWS SSO role, generate a native EKS token
+	var hasBridgeMapping bool
+	var mapping *aws.ContextMapping
+
 	if cm.ssoStorage != nil {
-		mapping, mappingErr := cm.ssoStorage.GetContextMapping(cm.currentContext)
+		var mappingErr error
+		mapping, mappingErr = cm.ssoStorage.GetContextMapping(cm.currentContext)
+		hasBridgeMapping = (mappingErr == nil && mapping != nil)
+	}
 
-		if mappingErr == nil && mapping != nil {
-			// ✅ [Happy Path] Bridge handles Auth
-			log.Printf("✅ [Auth] Bridge Identity used for context: %s -> %s/%s",
-				cm.currentContext, mapping.AccountId, mapping.RoleName)
+	if hasBridgeMapping {
+		// ✅ [Happy Path] Bridge handles Auth
+		log.Printf("✅ [Auth] Bridge Identity used for context: %s -> %s/%s",
+			cm.currentContext, mapping.AccountId, mapping.RoleName)
 
-			// Extract cluster name from the context/cluster ARN
-			clusterName := cm.extractClusterName(cm.currentContext, &rawConfig)
+		// Extract cluster name from the context/cluster ARN
+		clusterName := cm.extractClusterName(cm.currentContext, &rawConfig)
 
-			if clusterName != "" {
-				// Try to generate native EKS token
-				token, expiry, tokenErr := cm.generateNativeEKSToken(context.Background(), mapping, clusterName)
-				if tokenErr != nil {
-					// Wrap error clearly for better debugging
-					log.Printf("❌ [Auth] Bridge SSO Error for '%s': %v", cm.currentContext, tokenErr)
-					// Block the CLI fallback to prevent ugly errors
-					if config.ExecProvider != nil {
-						config.ExecProvider = nil
-					}
-					return fmt.Errorf("Bridge SSO Error: Failed to generate token for '%s'. Please check your session expiry. Error: %w", cm.currentContext, tokenErr)
-				}
-
-				log.Printf("✅ [Auth] Native EKS token generated (expires: %s)", expiry.Format(time.RFC3339))
-
-				// ⚡️ OVERRIDE: Remove the 'Exec' provider (stop it from calling 'aws-iam-authenticator')
+		if clusterName != "" {
+			// Try to generate native EKS token
+			token, expiry, tokenErr := cm.generateNativeEKSToken(context.Background(), mapping, clusterName)
+			if tokenErr != nil {
+				// Wrap error clearly for better debugging
+				log.Printf("❌ [Auth] Bridge SSO Error for '%s': %v", cm.currentContext, tokenErr)
+				// Block the CLI fallback to prevent ugly errors
 				config.ExecProvider = nil
-
-				// ⚡️ INJECT: Set the Bearer Token directly
-				config.BearerToken = token
-
-				// Cache the token
-				cm.cachedToken = token
-				cm.cachedTokenExpiry = expiry
-			} else {
-				log.Printf("⚠️ [Auth] Could not extract cluster name for '%s'. Bridge auth disabled.", cm.currentContext)
+				return fmt.Errorf("Bridge SSO Error: Failed to generate token for '%s'. Please check your session expiry. Error: %w", cm.currentContext, tokenErr)
 			}
-		} else {
-			// ⚠️ [Fallback Path] No Bridge mapping exists
-			log.Printf("⚠️ [Auth] No Bridge mapping for '%s'. ", cm.currentContext)
 
-			// 🚫 BLOCK AWS CLI to prevent ugly "Unable to locate credentials" spam
-			// Check if the kubeconfig uses an exec provider that calls 'aws'
-			if config.ExecProvider != nil {
-				execCmd := config.ExecProvider.Command
-				if strings.Contains(execCmd, "aws") {
-					log.Printf("🚫 [Auth] Blocked 'aws' CLI for context '%s' (Bridge Identity mapping required)", cm.currentContext)
-					// Disable the exec provider - this prevents the AWS CLI from being called
-					// and avoids the ugly "Unable to locate credentials" stderr spam
-					config.ExecProvider = nil
-					// The clientset will fail gracefully with "no credentials provided" error
-				}
+			log.Printf("✅ [Auth] Native EKS token generated (expires: %s)", expiry.Format(time.RFC3339))
+
+			// ⚡️ OVERRIDE: Remove the 'Exec' provider (stop it from calling 'aws-iam-authenticator')
+			config.ExecProvider = nil
+
+			// ⚡️ INJECT: Set the Bearer Token directly
+			config.BearerToken = token
+
+			// Cache the token
+			cm.cachedToken = token
+			cm.cachedTokenExpiry = expiry
+		} else {
+			log.Printf("⚠️ [Auth] Could not extract cluster name for '%s'. Bridge auth disabled.", cm.currentContext)
+			// Still block AWS CLI even if we can't extract cluster name
+			config.ExecProvider = nil
+		}
+	} else {
+		// ⚠️ [Fallback Path] No Bridge mapping exists
+		// 🚫 SAFETY LOCK: Block AWS CLI to prevent ugly "Unable to locate credentials" spam
+		// This check happens BEFORE client-go tries to execute the binary
+		if config.ExecProvider != nil {
+			execCmd := config.ExecProvider.Command
+			// Check for both 'aws' and 'aws-iam-authenticator' commands
+			if execCmd == "aws" || strings.Contains(execCmd, "aws-iam-authenticator") || strings.HasSuffix(execCmd, "/aws") {
+				log.Printf("🚫 [Auth] Blocked '%s' for context '%s' (Bridge Identity mapping required)", execCmd, cm.currentContext)
+				// Disable the exec provider - this prevents the AWS CLI from being called
+				// and avoids the ugly "Unable to locate credentials" stderr spam
+				config.ExecProvider = nil
+				// The clientset will fail gracefully with a clean "Unauthorized" error
 			}
 		}
 	}
