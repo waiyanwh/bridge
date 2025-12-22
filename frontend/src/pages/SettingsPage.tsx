@@ -4,7 +4,8 @@ import {
     EyeOff,
     LayoutList,
     Github,
-    Cpu
+    Cpu,
+    Palette
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
@@ -14,6 +15,7 @@ import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useSettings } from '@/context/SettingsContext'
+import { useTheme, type Theme } from '@/context/ThemeContext'
 import packageJson from '../../package.json'
 
 export function SettingsPage() {
@@ -25,6 +27,14 @@ export function SettingsPage() {
         tableDensity,
         setTableDensity
     } = useSettings()
+
+    const { theme, setTheme } = useTheme()
+
+    const themeOptions: { value: Theme; label: string; icon: string }[] = [
+        { value: 'light', label: 'Light', icon: '☀️' },
+        { value: 'dark', label: 'Dark', icon: '🌙' },
+        { value: 'bridge', label: 'Bridge', icon: '🌉' },
+    ]
 
     return (
         <div className="space-y-6 max-w-4xl mx-auto py-6">
@@ -70,7 +80,40 @@ export function SettingsPage() {
                 </CardContent>
             </Card>
 
-            {/* Appearance Section */}
+            {/* Theme Section */}
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center gap-2">
+                        <Palette className="h-5 w-5 text-muted-foreground" />
+                        <CardTitle className="text-lg">Theme</CardTitle>
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                            <Label className="text-base">Color Theme</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Choose your preferred color scheme.
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-1 rounded-lg border p-1 bg-muted/20">
+                            {themeOptions.map((option) => (
+                                <Button
+                                    key={option.value}
+                                    variant={theme === option.value ? 'secondary' : 'ghost'}
+                                    size="sm"
+                                    onClick={() => setTheme(option.value)}
+                                    className="h-8 gap-1.5 text-xs"
+                                >
+                                    <span>{option.icon}</span>
+                                    <span>{option.label}</span>
+                                </Button>
+                            ))}
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
             <Card>
                 <CardHeader>
                     <div className="flex items-center gap-2">

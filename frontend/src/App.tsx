@@ -5,6 +5,7 @@ import { Layout } from '@/components/layout'
 import { CommandPalette } from '@/components/CommandPalette'
 import { Toaster } from '@/components/ui/toast'
 import { SettingsProvider } from '@/context/SettingsContext'
+import { ThemeProvider } from '@/context/ThemeContext'
 import { GlobalQueryConfig } from '@/components/GlobalQueryConfig'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { NamespacesPage } from '@/pages/NamespacesPage'
@@ -125,13 +126,15 @@ function AppRoutes() {
 function App() {
     return (
         <QueryClientProvider client={queryClient}>
-            <SettingsProvider>
-                <GlobalQueryConfig />
-                <BrowserRouter>
-                    <AppRoutes />
-                </BrowserRouter>
-                <Toaster position="bottom-right" />
-            </SettingsProvider>
+            <ThemeProvider>
+                <SettingsProvider>
+                    <GlobalQueryConfig />
+                    <BrowserRouter>
+                        <AppRoutes />
+                    </BrowserRouter>
+                    <Toaster position="bottom-right" />
+                </SettingsProvider>
+            </ThemeProvider>
         </QueryClientProvider>
     )
 }

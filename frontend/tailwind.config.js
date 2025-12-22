@@ -21,6 +21,21 @@ export default {
                 mono: ['JetBrains Mono', 'Menlo', 'Monaco', 'monospace'],
             },
             colors: {
+                // Theme-based semantic colors (new)
+                bg: {
+                    primary: 'var(--bg-primary)',
+                    secondary: 'var(--bg-secondary)',
+                    tertiary: 'var(--bg-tertiary)',
+                },
+                'text-theme': {
+                    primary: 'var(--text-primary)',
+                    secondary: 'var(--text-secondary)',
+                },
+                'border-theme': 'var(--border-color)',
+                'accent-theme': {
+                    primary: 'var(--accent-primary)',
+                },
+                // Existing shadcn/ui colors (preserved)
                 border: "hsl(var(--border))",
                 input: "hsl(var(--input))",
                 ring: "hsl(var(--ring))",

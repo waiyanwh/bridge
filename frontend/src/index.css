@@ -4,50 +4,119 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================
+   MULTI-THEME SYSTEM - CSS Variables
+   ============================================ */
+
+/* 1. LIGHT MODE (Clean & High Contrast) */
+.theme-light {
+  --bg-primary: #ffffff;      /* White */
+  --bg-secondary: #f4f4f5;    /* Zinc-100 */
+  --bg-tertiary: #e4e4e7;     /* Zinc-200 */
+  --text-primary: #18181b;    /* Zinc-900 */
+  --text-secondary: #71717a;  /* Zinc-500 */
+  --border-color: #e4e4e7;    /* Zinc-200 */
+  --accent-primary: #2563eb;  /* Blue-600 */
+}
+
+/* 2. DARK MODE (Standard Neutral) */
+.theme-dark {
+  --bg-primary: #0a0a0a;      /* Neutral-950 */
+  --bg-secondary: #171717;    /* Neutral-900 */
+  --bg-tertiary: #262626;     /* Neutral-800 */
+  --text-primary: #fafafa;    /* Neutral-50 */
+  --text-secondary: #a3a3a3;  /* Neutral-400 */
+  --border-color: #262626;    /* Neutral-800 */
+  --accent-primary: #3b82f6;  /* Blue-500 */
+}
+
+/* 3. BRIDGE THEME (The "Pro" Default - Deep Slate) */
+.theme-bridge {
+  --bg-primary: #0f172a;      /* Slate-900 */
+  --bg-secondary: #1e293b;    /* Slate-800 */
+  --bg-tertiary: #334155;     /* Slate-700 */
+  --text-primary: #f8fafc;    /* Slate-50 */
+  --text-secondary: #94a3b8;  /* Slate-400 */
+  --border-color: #334155;    /* Slate-700 */
+  --accent-primary: #6366f1;  /* Indigo-500 */
+}
+
+/* ============================================
+   SHADCN/UI Variable Mapping
+   Maps existing shadcn variables to our theme system
+   ============================================ */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
     --radius: 0.5rem;
   }
 
-  .dark {
-    --background: 224 10% 10%;
+  /* Light theme - shadcn variable mapping */
+  .theme-light {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 4%;
+    --card: 0 0% 96%;
+    --card-foreground: 240 10% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 4%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 90%;
+    --secondary-foreground: 240 6% 10%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 240 5% 90%;
+    --accent-foreground: 240 6% 10%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 221 83% 53%;
+  }
+
+  /* Dark theme - shadcn variable mapping */
+  .theme-dark {
+    --background: 0 0% 4%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 64%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 63% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 217 91% 60%;
+  }
+
+  /* Bridge theme - shadcn variable mapping */
+  .theme-bridge {
+    --background: 222 47% 11%;
     --foreground: 210 40% 98%;
-    --card: 224 10% 12%;
+    --card: 217 33% 17%;
     --card-foreground: 210 40% 98%;
-    --popover: 224 10% 12%;
+    --popover: 217 33% 17%;
     --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 20% 18%;
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217 19% 27%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 20% 18%;
-    --muted-foreground: 215 20.2% 55%;
-    --accent: 217.2 20% 18%;
+    --muted: 217 19% 27%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 19% 27%;
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 50%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 20% 20%;
-    --input: 217.2 20% 20%;
-    --ring: 212.7 26.8% 83.9%;
+    --destructive: 0 63% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 217 19% 27%;
+    --input: 217 19% 27%;
+    --ring: 239 84% 67%;
   }
 }
 
@@ -67,7 +136,7 @@
   cursor: pointer;
 }
 
-/* Custom scrollbar for dark mode */
+/* Custom scrollbar - uses theme colors */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
