@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { ChevronDown, Check, Server, AlertCircle, Loader2 } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { ChevronDown, Check, Server, AlertCircle, Loader2, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const API_BASE = '/api/v1'
@@ -33,6 +33,8 @@ export function ContextSwitcher({ isExpanded }: { isExpanded: boolean }) {
         error: null,
     })
     const [isOpen, setIsOpen] = useState(false)
+    const [searchQuery, setSearchQuery] = useState('')
+    const searchInputRef = useRef<HTMLInputElement>(null)
 
     const fetchContexts = useCallback(async () => {
         try {
@@ -60,6 +62,18 @@ export function ContextSwitcher({ isExpanded }: { isExpanded: boolean }) {
     useEffect(() => {
         fetchContexts()
     }, [fetchContexts])
+
+    // Clear search when dropdown closes and focus input when opens
+    useEffect(() => {
+        if (isOpen) {
+            // Focus the search input after a small delay to ensure it's rendered
+            setTimeout(() => {
+                searchInputRef.current?.focus()
+            }, 50)
+        } else {
+            setSearchQuery('')
+        }
+    }, [isOpen])
 
     // Keyboard shortcut: Cmd+Shift+K
     useEffect(() => {
@@ -107,6 +121,14 @@ export function ContextSwitcher({ isExpanded }: { isExpanded: boolean }) {
             }))
         }
     }
+
+    // Filter contexts based on search query
+    const filteredContexts = state.contexts.filter(ctx => {
+        if (!searchQuery.trim()) return true
+        const query = searchQuery.toLowerCase()
+        return ctx.name.toLowerCase().includes(query) ||
+            ctx.cluster.toLowerCase().includes(query)
+    })
 
     if (state.isLoading) {
         return (
@@ -183,39 +205,63 @@ export function ContextSwitcher({ isExpanded }: { isExpanded: boolean }) {
 
                     {/* Menu */}
                     <div className={cn(
-                        "absolute z-50 mt-1 py-1 rounded-lg border border-zinc-700 bg-zinc-900 shadow-xl",
-                        isExpanded ? "left-0 right-0" : "left-full ml-2 top-0 w-64"
+                        "absolute z-50 mt-1 rounded-lg border border-zinc-700 bg-zinc-900 shadow-xl overflow-hidden",
+                        isExpanded ? "left-0 right-0" : "left-full ml-2 top-0 w-72"
                     )}>
+                        {/* Header */}
                         <div className="px-3 py-2 text-xs font-medium text-muted-foreground border-b border-zinc-800">
                             Switch Cluster <span className="text-muted-foreground/50">⌘⇧K</span>
                         </div>
+
+                        {/* Search Input - Sticky */}
+                        <div className="sticky top-0 px-3 py-2 border-b border-zinc-800 bg-zinc-900">
+                            <div className="relative">
+                                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <input
+                                    ref={searchInputRef}
+                                    type="text"
+                                    placeholder="Search clusters..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full pl-8 pr-3 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded-md placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/50 focus:border-emerald-500/50"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Context List */}
                         <div className="max-h-60 overflow-y-auto py-1">
-                            {state.contexts.map(ctx => (
-                                <button
-                                    key={ctx.name}
-                                    onClick={() => handleSwitch(ctx.name)}
-                                    className={cn(
-                                        "w-full flex items-center gap-2 px-3 py-2 text-left transition-colors",
-                                        "hover:bg-zinc-800",
-                                        ctx.isCurrent && "bg-zinc-800/50"
-                                    )}
-                                >
-                                    <div className="w-4 h-4 flex items-center justify-center">
-                                        {ctx.isCurrent && <Check className="h-4 w-4 text-emerald-400" />}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className={cn(
-                                            "text-sm font-medium truncate",
-                                            ctx.isCurrent && "text-emerald-400"
-                                        )}>
-                                            {ctx.name}
+                            {filteredContexts.length === 0 ? (
+                                <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                                    No clusters found
+                                </div>
+                            ) : (
+                                filteredContexts.map(ctx => (
+                                    <button
+                                        key={ctx.name}
+                                        onClick={() => handleSwitch(ctx.name)}
+                                        className={cn(
+                                            "w-full flex items-center gap-2 px-3 py-2 text-left transition-colors",
+                                            "hover:bg-zinc-800",
+                                            ctx.isCurrent && "bg-zinc-800/50"
+                                        )}
+                                    >
+                                        <div className="w-4 h-4 flex items-center justify-center">
+                                            {ctx.isCurrent && <Check className="h-4 w-4 text-emerald-400" />}
                                         </div>
-                                        <div className="text-xs text-muted-foreground truncate">
-                                            {ctx.cluster}
+                                        <div className="flex-1 min-w-0">
+                                            <div className={cn(
+                                                "text-sm font-medium truncate",
+                                                ctx.isCurrent && "text-emerald-400"
+                                            )}>
+                                                {ctx.name}
+                                            </div>
+                                            <div className="text-xs text-muted-foreground truncate">
+                                                {ctx.cluster}
+                                            </div>
                                         </div>
-                                    </div>
-                                </button>
-                            ))}
+                                    </button>
+                                ))
+                            )}
                         </div>
                     </div>
                 </>
