@@ -36,7 +36,11 @@ clean:
 dev:
 	@echo "Run these in separate terminals:"
 	@echo "  Terminal 1: cd frontend && npm run dev"
-	@echo "  Terminal 2: cd backend && go run ."
+	@echo "  Terminal 2: cd backend && go run .
+
+dev-backend:
+	@echo "🔧 Starting backend in dev mode..."
+	@./backend/dev.sh"
 
 # ============================================
 # Release builds (cross-compilation)

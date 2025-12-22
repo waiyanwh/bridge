@@ -1,20 +1,10 @@
 import { useState } from 'react'
-import { RefreshCw, AlertCircle, Activity, AlertTriangle } from 'lucide-react'
+import { RefreshCw, AlertCircle, AlertTriangle } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEvents } from '@/hooks'
 import { useNamespaceStore } from '@/store'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table'
 import { EventsTable } from '@/components/events/EventsTable'
-import type { EventInfo } from '@/api'
 
 export function EventsPage() {
     const queryClient = useQueryClient()

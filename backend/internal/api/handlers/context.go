@@ -28,6 +28,7 @@ type SwitchContextRequest struct {
 type ContextListResponse struct {
 	Contexts       []k8s.ContextInfo `json:"contexts"`
 	CurrentContext string            `json:"currentContext"`
+	CurrentCluster string            `json:"currentCluster"`
 	CurrentServer  string            `json:"currentServer"`
 	Count          int               `json:"count"`
 }
@@ -35,7 +36,7 @@ type ContextListResponse struct {
 // ListContexts handles GET /api/v1/contexts
 func (h *ContextHandler) ListContexts(c *gin.Context) {
 	manager := h.k8sService.GetManager()
-	
+
 	contexts, err := manager.ListContexts()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
@@ -44,12 +45,13 @@ func (h *ContextHandler) ListContexts(c *gin.Context) {
 		})
 		return
 	}
-	
-	currentContext, currentServer := manager.GetClusterInfo()
-	
+
+	currentContext, currentCluster, currentServer := manager.GetClusterInfo()
+
 	c.JSON(http.StatusOK, ContextListResponse{
 		Contexts:       contexts,
 		CurrentContext: currentContext,
+		CurrentCluster: currentCluster,
 		CurrentServer:  currentServer,
 		Count:          len(contexts),
 	})
@@ -65,9 +67,9 @@ func (h *ContextHandler) SwitchContext(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	manager := h.k8sService.GetManager()
-	
+
 	if err := manager.SwitchContext(req.ContextName); err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
 			Error:   "SWITCH_FAILED",
@@ -75,12 +77,13 @@ func (h *ContextHandler) SwitchContext(c *gin.Context) {
 		})
 		return
 	}
-	
-	currentContext, currentServer := manager.GetClusterInfo()
-	
+
+	currentContext, currentCluster, currentServer := manager.GetClusterInfo()
+
 	c.JSON(http.StatusOK, gin.H{
 		"message":        "Successfully switched context",
 		"currentContext": currentContext,
+		"currentCluster": currentCluster,
 		"currentServer":  currentServer,
 	})
 }
@@ -88,10 +91,11 @@ func (h *ContextHandler) SwitchContext(c *gin.Context) {
 // GetCurrentContext handles GET /api/v1/contexts/current
 func (h *ContextHandler) GetCurrentContext(c *gin.Context) {
 	manager := h.k8sService.GetManager()
-	currentContext, currentServer := manager.GetClusterInfo()
-	
+	currentContext, currentCluster, currentServer := manager.GetClusterInfo()
+
 	c.JSON(http.StatusOK, gin.H{
 		"context": currentContext,
+		"cluster": currentCluster,
 		"server":  currentServer,
 	})
 }

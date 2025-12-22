@@ -30,7 +30,7 @@ type ClientManager struct {
 	currentContext string
 	kubeconfigPath string
 	rawConfig      *api.Config
-	
+
 	// Callback for notifying when context changes (for WebSocket cleanup)
 	onContextChange func()
 }
@@ -38,7 +38,7 @@ type ClientManager struct {
 // NewClientManager creates a new ClientManager
 func NewClientManager() (*ClientManager, error) {
 	cm := &ClientManager{}
-	
+
 	// Find kubeconfig path
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if kubeconfig == "" {
@@ -49,12 +49,12 @@ func NewClientManager() (*ClientManager, error) {
 		kubeconfig = filepath.Join(homeDir, ".kube", "config")
 	}
 	cm.kubeconfigPath = kubeconfig
-	
+
 	// Load the initial config
 	if err := cm.loadConfig(""); err != nil {
 		return nil, err
 	}
-	
+
 	return cm, nil
 }
 
@@ -63,52 +63,52 @@ func NewClientManager() (*ClientManager, error) {
 func (cm *ClientManager) loadConfig(contextName string) error {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
-	
+
 	// Check if kubeconfig file exists
 	if _, err := os.Stat(cm.kubeconfigPath); os.IsNotExist(err) {
 		return fmt.Errorf("kubeconfig not found at %s", cm.kubeconfigPath)
 	}
-	
+
 	// Load raw kubeconfig
 	loadingRules := &clientcmd.ClientConfigLoadingRules{ExplicitPath: cm.kubeconfigPath}
 	configOverrides := &clientcmd.ConfigOverrides{}
-	
+
 	if contextName != "" {
 		configOverrides.CurrentContext = contextName
 	}
-	
+
 	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
-	
+
 	// Get raw config for context listing
 	rawConfig, err := kubeConfig.RawConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load raw kubeconfig: %w", err)
 	}
 	cm.rawConfig = &rawConfig
-	
+
 	// Determine current context
 	if contextName != "" {
 		cm.currentContext = contextName
 	} else {
 		cm.currentContext = rawConfig.CurrentContext
 	}
-	
+
 	// Build REST config
 	config, err := kubeConfig.ClientConfig()
 	if err != nil {
 		return fmt.Errorf("failed to build config for context '%s': %w", cm.currentContext, err)
 	}
 	cm.config = config
-	
+
 	// Create clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return fmt.Errorf("failed to create clientset for context '%s': %w", cm.currentContext, err)
 	}
 	cm.clientset = clientset
-	
+
 	log.Printf("[ClientManager] Loaded context: %s (cluster: %s)", cm.currentContext, config.Host)
-	
+
 	return nil
 }
 
@@ -137,11 +137,11 @@ func (cm *ClientManager) GetCurrentContext() string {
 func (cm *ClientManager) ListContexts() ([]ContextInfo, error) {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
-	
+
 	if cm.rawConfig == nil {
 		return nil, fmt.Errorf("kubeconfig not loaded")
 	}
-	
+
 	contexts := make([]ContextInfo, 0, len(cm.rawConfig.Contexts))
 	for name, ctx := range cm.rawConfig.Contexts {
 		contexts = append(contexts, ContextInfo{
@@ -152,7 +152,7 @@ func (cm *ClientManager) ListContexts() ([]ContextInfo, error) {
 			IsCurrent: name == cm.currentContext,
 		})
 	}
-	
+
 	return contexts, nil
 }
 
@@ -169,17 +169,17 @@ func (cm *ClientManager) SwitchContext(contextName string) error {
 		return fmt.Errorf("context '%s' not found in kubeconfig", contextName)
 	}
 	cm.mu.RUnlock()
-	
+
 	// Notify listeners before switching (for WebSocket cleanup)
 	if cm.onContextChange != nil {
 		cm.onContextChange()
 	}
-	
+
 	// Reload config with new context
 	if err := cm.loadConfig(contextName); err != nil {
 		return err
 	}
-	
+
 	log.Printf("[ClientManager] Switched to context: %s", contextName)
 	return nil
 }
@@ -193,14 +193,29 @@ func (cm *ClientManager) SetOnContextChange(fn func()) {
 }
 
 // GetClusterInfo returns information about the current cluster
-func (cm *ClientManager) GetClusterInfo() (string, string) {
+// Returns: contextName, clusterName, serverURL
+func (cm *ClientManager) GetClusterInfo() (string, string, string) {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
-	
+
 	serverURL := ""
+	clusterName := ""
+
 	if cm.config != nil {
 		serverURL = cm.config.Host
 	}
-	
-	return cm.currentContext, serverURL
+
+	// Look up the cluster name from the context
+	if cm.rawConfig != nil && cm.currentContext != "" {
+		if ctx, exists := cm.rawConfig.Contexts[cm.currentContext]; exists {
+			clusterName = ctx.Cluster
+		}
+	}
+
+	// Fallback for cluster name
+	if clusterName == "" {
+		clusterName = "In-Cluster"
+	}
+
+	return cm.currentContext, clusterName, serverURL
 }

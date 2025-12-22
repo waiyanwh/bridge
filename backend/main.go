@@ -28,8 +28,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	contextName, serverURL := clientManager.GetClusterInfo()
-	log.Printf("Successfully connected to Kubernetes cluster: %s (%s)", contextName, serverURL)
+	contextName, clusterName, serverURL := clientManager.GetClusterInfo()
+	log.Printf("Successfully connected to Kubernetes cluster: %s (context: %s, server: %s)", clusterName, contextName, serverURL)
 
 	// Create K8s service wrapper
 	k8sService := k8s.NewService(clientManager)

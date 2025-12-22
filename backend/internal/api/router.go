@@ -29,14 +29,19 @@ func SetupRoutes(router *gin.Engine, k8sService *k8s.Service) {
 	topologyHandler := handlers.NewTopologyHandler(k8sService)
 	workloadActionsHandler := handlers.NewWorkloadActionsHandler(k8sService)
 	dashboardHandler := handlers.NewDashboardHandler(k8sService)
-	
+
 	// Create tunnel manager and handler
 	tunnelManager := tunnel.NewManager(k8sService.GetClientset(), k8sService.GetConfig())
 	tunnelHandler := handlers.NewTunnelHandler(tunnelManager)
-	
+
 	yamlHandler, err := handlers.NewYAMLHandler(k8sService)
 	if err != nil {
 		log.Printf("Warning: Failed to create YAML handler: %v", err)
+	}
+
+	crdHandler, err := handlers.NewCRDHandler(k8sService)
+	if err != nil {
+		log.Printf("Warning: Failed to create CRD handler: %v", err)
 	}
 
 	// API v1 group
@@ -53,7 +58,7 @@ func SetupRoutes(router *gin.Engine, k8sService *k8s.Service) {
 		// Pod endpoints
 		v1.GET("/pods", podHandler.ListPods)
 		v1.GET("/pods/:namespace/:name", podHandler.GetPod)
-		
+
 		// WebSocket endpoints
 		v1.GET("/pods/:namespace/:name/logs", logsHandler.StreamLogs)
 		v1.GET("/logs/stream", logsHandler.StreamAggregatedLogs)
@@ -138,6 +143,12 @@ func SetupRoutes(router *gin.Engine, k8sService *k8s.Service) {
 
 		// Resource Quotas
 		v1.GET("/resourcequotas/:namespace", namespaceHandler.GetResourceQuotas)
+
+		// CRD endpoints (Custom Resource Definitions)
+		if crdHandler != nil {
+			v1.GET("/crds", crdHandler.ListCRDGroups)
+			v1.GET("/custom/:group/:version/:resource", crdHandler.ListCustomResources)
+		}
 	}
 
 	// Health check endpoint

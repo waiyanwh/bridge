@@ -8,22 +8,43 @@ import { useNamespaceStore } from '@/store'
 import { useSettings } from '@/context/SettingsContext'
 import { cn } from '@/lib/utils'
 
-interface HeaderProps {
-    context?: string
-    clusterName?: string
-}
+const API_BASE = '/api/v1'
 
-export function Header({
-    context = 'docker-desktop',
-    clusterName = 'local-cluster',
-}: HeaderProps) {
+export function Header() {
     const [dropdownOpen, setDropdownOpen] = useState(false)
     const dropdownRef = useRef<HTMLDivElement>(null)
     const location = useLocation()
 
+    // Context/Cluster info from API
+    const [contextInfo, setContextInfo] = useState({
+        context: '',
+        cluster: '',
+        isLoading: true,
+    })
+
     const { data: namespacesData, isLoading, refetch } = useNamespaces()
     const { selectedNamespace, setNamespace } = useNamespaceStore()
     const { showSystemNamespaces } = useSettings()
+
+    // Fetch context info from API
+    useEffect(() => {
+        async function fetchContextInfo() {
+            try {
+                const response = await fetch(`${API_BASE}/contexts`)
+                if (response.ok) {
+                    const data = await response.json()
+                    setContextInfo({
+                        context: data.currentContext || 'Unknown',
+                        cluster: data.currentCluster || 'Unknown',
+                        isLoading: false,
+                    })
+                }
+            } catch (err) {
+                setContextInfo(prev => ({ ...prev, isLoading: false }))
+            }
+        }
+        fetchContextInfo()
+    }, [])
 
     // Hide namespace selector on namespace detail pages to avoid dual context
     const isNamespaceDetail = location.pathname.startsWith('/namespaces/')
@@ -43,6 +64,11 @@ export function Header({
         setNamespace(ns)
         setDropdownOpen(false)
     }
+
+    // Display values
+    const context = contextInfo.isLoading ? 'Loading...' : contextInfo.context
+    const clusterName = contextInfo.isLoading ? 'Loading...' : contextInfo.cluster
+
 
     return (
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6">

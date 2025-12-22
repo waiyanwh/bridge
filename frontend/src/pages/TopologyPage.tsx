@@ -10,7 +10,8 @@ import { ServiceDetailSheet } from '@/components/ServiceDetailSheet'
 import { IngressDetailSheet } from '@/components/IngressDetailSheet'
 
 // Type adapters to match what the sheets expect
-import type { Pod, DeploymentInfo, ServiceInfo, IngressInfo } from '@/api'
+import type { DeploymentInfo, ServiceInfo, IngressInfo } from '@/api'
+import type { Pod } from '@/types'
 
 export function TopologyPage() {
     const { selectedNamespace } = useNamespaceStore()

@@ -85,6 +85,8 @@ interface SheetHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
     resourceKind?: string
     resourceName?: string
     namespace?: string
+    group?: string
+    version?: string
     onYamlSuccess?: () => void
 }
 
@@ -94,6 +96,8 @@ const SheetHeader = ({
     resourceKind,
     resourceName,
     namespace,
+    group,
+    version,
     onYamlSuccess,
     ...props
 }: SheetHeaderProps) => {
@@ -134,6 +138,8 @@ const SheetHeader = ({
                             resourceType={resourceKind}
                             name={resourceName}
                             namespace={namespace}
+                            group={group}
+                            version={version}
                             onSuccess={onYamlSuccess}
                         />
                     </>
