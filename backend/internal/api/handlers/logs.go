@@ -23,6 +23,77 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
+// resolvePodsForWorkload finds pods for a given workload (Deployment, StatefulSet, DaemonSet)
+// and returns the pod list and pod names. It extracts the label selector from the workload
+// and queries for matching pods.
+// Note: This function creates its own timeout context from context.Background() to avoid
+// issues with request context cancellation during WebSocket upgrades.
+func (h *LogsHandler) resolvePodsForWorkload(namespace, name, workloadType string) ([]corev1.Pod, []string, error) {
+	// Create a stable context with timeout for K8s API calls
+	// We don't use the request context because it may be cancelled during WebSocket upgrade
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	clientset, err := h.k8sService.GetClientset()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var labelSelector string
+
+	switch workloadType {
+	case "deployment":
+		deployment, err := clientset.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return nil, nil, err
+		}
+		selector, err := metav1.LabelSelectorAsSelector(deployment.Spec.Selector)
+		if err != nil {
+			return nil, nil, err
+		}
+		labelSelector = selector.String()
+
+	case "statefulset":
+		statefulset, err := clientset.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return nil, nil, err
+		}
+		selector, err := metav1.LabelSelectorAsSelector(statefulset.Spec.Selector)
+		if err != nil {
+			return nil, nil, err
+		}
+		labelSelector = selector.String()
+
+	case "daemonset":
+		daemonset, err := clientset.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return nil, nil, err
+		}
+		selector, err := metav1.LabelSelectorAsSelector(daemonset.Spec.Selector)
+		if err != nil {
+			return nil, nil, err
+		}
+		labelSelector = selector.String()
+
+	default:
+		// Fallback: treat as a direct selector string
+		labelSelector = name
+	}
+
+	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	podNames := make([]string, len(pods.Items))
+	for i, pod := range pods.Items {
+		podNames[i] = pod.Name
+	}
+
+	return pods.Items, podNames, nil
+}
+
 // LogsHandler handles pod log streaming via WebSocket
 type LogsHandler struct {
 	k8sService *k8s.Service
@@ -131,20 +202,26 @@ type LogLine struct {
 	Timestamp string `json:"timestamp,omitempty"`
 }
 
-// StreamAggregatedLogs handles GET /api/v1/logs/stream?selector=app=frontend
-// Streams logs from all pods matching the selector
+// StreamAggregatedLogs handles GET /api/v1/logs/stream
+// Supports two modes:
+// 1. Workload mode: ?type=deployment&name=myapp&namespace=default
+// 2. Selector mode (legacy): ?selector=app=frontend&namespace=default
 func (h *LogsHandler) StreamAggregatedLogs(c *gin.Context) {
-	selector := c.Query("selector")
 	namespace := c.Query("namespace")
 	if namespace == "" {
 		namespace = "default"
 	}
 
-	log.Printf("Aggregated logs request: selector=%s, namespace=%s", selector, namespace)
+	workloadType := c.Query("type")
+	workloadName := c.Query("name")
+	selector := c.Query("selector")
 
-	if selector == "" {
-		log.Printf("Empty selector, returning 400")
-		c.JSON(http.StatusBadRequest, gin.H{"error": "selector query parameter is required"})
+	log.Printf("Aggregated logs request: type=%s, name=%s, selector=%s, namespace=%s", workloadType, workloadName, selector, namespace)
+
+	// Validate that we have either workload info or a selector
+	if workloadType == "" && workloadName == "" && selector == "" {
+		log.Printf("Missing parameters, returning 400")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Either 'type' and 'name' or 'selector' query parameter is required"})
 		return
 	}
 
@@ -156,7 +233,7 @@ func (h *LogsHandler) StreamAggregatedLogs(c *gin.Context) {
 	}
 	defer conn.Close()
 
-	log.Printf("WebSocket connection established for selector: %s", selector)
+	log.Printf("WebSocket connection established")
 
 	// Create context that cancels when connection closes
 	ctx, cancel := context.WithCancel(c.Request.Context())
@@ -172,34 +249,52 @@ func (h *LogsHandler) StreamAggregatedLogs(c *gin.Context) {
 		}
 	}()
 
-	// List pods matching the selector
-	clientset, err := h.k8sService.GetClientset()
-	if err != nil {
-		h.sendError(conn, "Client not ready: "+err.Error())
-		return
-	}
-	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: selector,
-	})
-	if err != nil {
-		log.Printf("Failed to list pods with selector %s: %v", selector, err)
-		h.sendError(conn, "Failed to list pods: "+err.Error())
-		return
+	// Resolve pods based on workload type or selector
+	var pods []corev1.Pod
+	var podNames []string
+
+	if workloadType != "" && workloadName != "" {
+		// Use workload-based resolution (uses its own stable context internally)
+		pods, podNames, err = h.resolvePodsForWorkload(namespace, workloadName, workloadType)
+		if err != nil {
+			log.Printf("Failed to resolve pods for %s/%s: %v", workloadType, workloadName, err)
+			h.sendError(conn, "Failed to resolve pods: "+err.Error())
+			return
+		}
+	} else {
+		// Fallback to selector-based resolution
+		// Create a stable context for the K8s API call to avoid issues with WebSocket upgrade
+		listCtx, listCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer listCancel()
+
+		clientset, err := h.k8sService.GetClientset()
+		if err != nil {
+			h.sendError(conn, "Client not ready: "+err.Error())
+			return
+		}
+		podList, err := clientset.CoreV1().Pods(namespace).List(listCtx, metav1.ListOptions{
+			LabelSelector: selector,
+		})
+		if err != nil {
+			log.Printf("Failed to list pods with selector %s: %v", selector, err)
+			h.sendError(conn, "Failed to list pods: "+err.Error())
+			return
+		}
+		pods = podList.Items
+		podNames = make([]string, len(pods))
+		for i, pod := range pods {
+			podNames[i] = pod.Name
+		}
 	}
 
-	log.Printf("Found %d pods matching selector %s", len(pods.Items), selector)
+	log.Printf("Found %d pods", len(pods))
 
-	if len(pods.Items) == 0 {
-		h.sendError(conn, "No pods found matching selector: "+selector)
+	if len(pods) == 0 {
+		h.sendError(conn, "No pods found")
 		return
 	}
 
 	// Send initial message about which pods we're tailing
-	podNames := make([]string, len(pods.Items))
-	for i, pod := range pods.Items {
-		podNames[i] = pod.Name
-	}
-
 	initMsg := map[string]interface{}{
 		"type":  "init",
 		"pods":  podNames,
@@ -215,7 +310,7 @@ func (h *LogsHandler) StreamAggregatedLogs(c *gin.Context) {
 	var wg sync.WaitGroup
 
 	// Launch a goroutine for each pod to stream its logs
-	for _, pod := range pods.Items {
+	for _, pod := range pods {
 		// Skip non-running pods
 		if pod.Status.Phase != corev1.PodRunning {
 			continue

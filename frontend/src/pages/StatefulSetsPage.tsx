@@ -13,12 +13,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
-import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-} from '@/components/ui/sheet'
+import { StatefulSetDetailSheet } from '@/components/StatefulSetDetailSheet'
 import type { StatefulSetInfo } from '@/api'
 
 export function StatefulSetsPage() {
@@ -32,9 +27,6 @@ export function StatefulSetsPage() {
 
     const handleRefresh = () => {
         queryClient.invalidateQueries({ queryKey: ['statefulsets', namespace] })
-        if (selectedStatefulSet) {
-            // Re-fetch logic if we had full detail view, currently list refresh is enough for now
-        }
     }
 
     const handleRowClick = (sts: StatefulSetInfo) => {
@@ -88,59 +80,11 @@ export function StatefulSetsPage() {
             )}
 
             {/* Detail Sheet */}
-            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-                <SheetContent side="right" className="flex w-[700px] flex-col p-0 sm:max-w-[700px]">
-                    {selectedStatefulSet && (
-                        <>
-                            <SheetHeader
-                                className="border-b border-border px-6 py-4"
-                                resourceKind="statefulsets"
-                                resourceName={selectedStatefulSet.name}
-                                namespace={selectedStatefulSet.namespace}
-                                onYamlSuccess={handleRefresh}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <Database className="h-5 w-5 text-muted-foreground" />
-                                    <div>
-                                        <SheetTitle className="font-mono text-base">
-                                            {selectedStatefulSet.name}
-                                        </SheetTitle>
-                                        <p className="text-xs text-muted-foreground">
-                                            {selectedStatefulSet.namespace}
-                                        </p>
-                                    </div>
-                                </div>
-                            </SheetHeader>
-
-                            <div className="p-6">
-                                <div className="rounded-md bg-muted/30 p-4 space-y-4">
-                                    <div className="grid grid-cols-2 gap-4 text-sm">
-                                        <div>
-                                            <span className="text-muted-foreground">Replicas</span>
-                                            <p className="font-mono">{selectedStatefulSet.readyCount} / {selectedStatefulSet.desiredCount}</p>
-                                        </div>
-                                        <div>
-                                            <span className="text-muted-foreground">Age</span>
-                                            <p>{selectedStatefulSet.age}</p>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <span className="text-muted-foreground text-sm block mb-2">Images</span>
-                                        <div className="flex flex-wrap gap-2">
-                                            {selectedStatefulSet.images.map((img, i) => (
-                                                <Badge key={i} variant="secondary" className="font-mono text-xs">
-                                                    {img}
-                                                </Badge>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </>
-                    )}
-                </SheetContent>
-            </Sheet>
+            <StatefulSetDetailSheet
+                statefulSet={selectedStatefulSet}
+                open={sheetOpen}
+                onOpenChange={setSheetOpen}
+            />
         </div>
     )
 }

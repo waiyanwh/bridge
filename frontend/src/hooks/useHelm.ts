@@ -14,7 +14,6 @@ export function useHelmReleases(namespace: string = '') {
     return useQuery<HelmReleasesResponse, Error>({
         queryKey: ['helmReleases', namespace],
         queryFn: () => fetchHelmReleases(namespace),
-        refetchInterval: 30000, // Helm releases don't change often
     })
 }
 

@@ -12,3 +12,5 @@ export * from './useHelm'
 export * from './useResourceQuotas'
 export * from './useCRDs'
 export * from './useAWS'
+export * from './useSmartRefetchInterval'
+

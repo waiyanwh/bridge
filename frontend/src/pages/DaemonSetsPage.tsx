@@ -13,12 +13,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
-import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-} from '@/components/ui/sheet'
+import { DaemonSetDetailSheet } from '@/components/DaemonSetDetailSheet'
 import type { DaemonSetInfo } from '@/api'
 
 export function DaemonSetsPage() {
@@ -85,59 +80,11 @@ export function DaemonSetsPage() {
             )}
 
             {/* Detail Sheet */}
-            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-                <SheetContent side="right" className="flex w-[700px] flex-col p-0 sm:max-w-[700px]">
-                    {selectedDaemonSet && (
-                        <>
-                            <SheetHeader
-                                className="border-b border-border px-6 py-4"
-                                resourceKind="daemonsets"
-                                resourceName={selectedDaemonSet.name}
-                                namespace={selectedDaemonSet.namespace}
-                                onYamlSuccess={handleRefresh}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <Layers className="h-5 w-5 text-muted-foreground" />
-                                    <div>
-                                        <SheetTitle className="font-mono text-base">
-                                            {selectedDaemonSet.name}
-                                        </SheetTitle>
-                                        <p className="text-xs text-muted-foreground">
-                                            {selectedDaemonSet.namespace}
-                                        </p>
-                                    </div>
-                                </div>
-                            </SheetHeader>
-
-                            <div className="p-6">
-                                <div className="rounded-md bg-muted/30 p-4 space-y-4">
-                                    <div className="grid grid-cols-2 gap-4 text-sm">
-                                        <div>
-                                            <span className="text-muted-foreground">Status</span>
-                                            <p className="font-mono">{selectedDaemonSet.ready} / {selectedDaemonSet.desired} Ready</p>
-                                        </div>
-                                        <div>
-                                            <span className="text-muted-foreground">Age</span>
-                                            <p>{selectedDaemonSet.age}</p>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <span className="text-muted-foreground text-sm block mb-2">Images</span>
-                                        <div className="flex flex-wrap gap-2">
-                                            {selectedDaemonSet.images.map((img, i) => (
-                                                <Badge key={i} variant="secondary" className="font-mono text-xs">
-                                                    {img}
-                                                </Badge>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </>
-                    )}
-                </SheetContent>
-            </Sheet>
+            <DaemonSetDetailSheet
+                daemonSet={selectedDaemonSet}
+                open={sheetOpen}
+                onOpenChange={setSheetOpen}
+            />
         </div>
     )
 }

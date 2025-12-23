@@ -12,7 +12,6 @@ export function useTunnels() {
     return useQuery<TunnelsResponse, Error>({
         queryKey: ['tunnels'],
         queryFn: fetchTunnels,
-        refetchInterval: 5000, // Check tunnel status frequently
     })
 }
 

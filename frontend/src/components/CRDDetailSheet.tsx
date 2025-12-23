@@ -113,8 +113,8 @@ export function CRDDetailSheet({
         <>
             <Sheet open={open} onOpenChange={onOpenChange}>
                 <SheetContent side="right" className="flex w-[850px] max-w-4xl flex-col p-0 sm:max-w-4xl">
-                    {/* Header - 2-row layout */}
-                    <div className="border-b border-border px-6 py-4 space-y-1">
+                    {/* Header - 2-row layout (shrink-0 prevents squishing) */}
+                    <div className="shrink-0 border-b border-border px-6 py-4 space-y-1">
                         {/* Row 1: Name, Copy, Kind Badge ... Edit YAML, Close button */}
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -166,9 +166,9 @@ export function CRDDetailSheet({
                         </p>
                     </div>
 
-                    {/* Tabs */}
-                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-                        <TabsList className="justify-start rounded-none border-b bg-transparent px-6 h-12">
+                    {/* Tabs - flex-1 to fill remaining space, overflow-hidden to contain scrollable content */}
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+                        <TabsList className="shrink-0 justify-start rounded-none border-b bg-transparent px-6 h-12">
                             <TabsTrigger
                                 value="summary"
                                 className={cn(
@@ -259,7 +259,7 @@ export function CRDDetailSheet({
                         </TabsContent>
 
                         {/* Events Tab */}
-                        <TabsContent value="events" className="flex-1 p-6">
+                        <TabsContent value="events" className="flex-1 overflow-y-auto p-6">
                             <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
                                 <Activity className="h-12 w-12" />
                                 <p>Events for this resource are not yet implemented.</p>

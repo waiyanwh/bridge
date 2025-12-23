@@ -86,7 +86,7 @@ export function LogViewer({ namespace, podName, container }: LogViewerProps) {
                 {logs.map((line, index) => (
                     <div
                         key={index}
-                        className="whitespace-pre-wrap break-all text-green-400 leading-relaxed"
+                        className="whitespace-pre-wrap break-all text-foreground leading-relaxed"
                     >
                         {line}
                     </div>

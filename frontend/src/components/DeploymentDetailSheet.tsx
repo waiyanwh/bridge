@@ -278,6 +278,8 @@ export function DeploymentDetailSheet({ deployment, open, onOpenChange }: Deploy
                             <AggregatedLogs
                                 selector={selectorString}
                                 namespace={deployment.namespace}
+                                resourceType="deployment"
+                                resourceName={deployment.name}
                             />
                         </TabsContent>
                     </Tabs>

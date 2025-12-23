@@ -41,14 +41,21 @@ import {
     CloudAccountsPage
 } from '@/pages'
 
-// Create a query client
+// Create a query client with optimized defaults
 const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
-            refetchOnWindowFocus: false,
+            // Refresh when user returns to the app
+            refetchOnWindowFocus: true,
+            // Refresh when connection is restored
+            refetchOnReconnect: true,
+            // Don't refetch immediately if data is still fresh
+            refetchOnMount: false,
+            // Consider data "fresh" for 10 seconds (reduces API spam on component re-renders)
+            staleTime: 10000,
+            // Retry failed requests once
             retry: 1,
-            staleTime: 30000,
-            // refetchInterval will be controlled by GlobalQueryConfig
+            // refetchInterval will be controlled by GlobalQueryConfig based on visibility
         },
     },
 })

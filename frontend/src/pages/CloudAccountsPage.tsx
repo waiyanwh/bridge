@@ -96,8 +96,8 @@ function ContextMappingsPanel({ onNavigateToSessions }: ContextMappingsPanelProp
                     Link your Kubernetes Contexts to AWS Roles to enable seamless authentication.
                 </p>
                 {onNavigateToSessions && (
-                    <Button 
-                        variant="outline" 
+                    <Button
+                        variant="outline"
                         onClick={onNavigateToSessions}
                         className="gap-2"
                     >
@@ -235,20 +235,20 @@ export function CloudAccountsPage() {
                             <p className="font-medium text-foreground">How Bridge Isolated Mode works</p>
                             <ul className="list-disc list-inside space-y-1">
                                 <li>
-                                    <strong>No pollution:</strong> Bridge manages SSO tokens in{' '}
+                                    <strong className="text-foreground">No pollution:</strong> Bridge manages SSO tokens in{' '}
                                     <code className="text-xs bg-muted px-1 py-0.5 rounded">~/.bridge/</code>,
                                     not your global AWS config.
                                 </li>
                                 <li>
-                                    <strong>Device Flow:</strong> Authenticate via the OAuth device authorization flow.
+                                    <strong className="text-foreground">Device Flow:</strong> Authenticate via the OAuth device authorization flow.
                                     Just copy the code and complete login in your browser.
                                 </li>
                                 <li>
-                                    <strong>Account Tree:</strong> After login, Bridge discovers all accounts and roles
+                                    <strong className="text-foreground">Account Tree:</strong> After login, Bridge discovers all accounts and roles
                                     you have access to.
                                 </li>
                                 <li>
-                                    <strong>Seamless kubectl:</strong> When you map a role to a context, Bridge injects{' '}
+                                    <strong className="text-foreground">Seamless kubectl:</strong> When you map a role to a context, Bridge injects{' '}
                                     <code className="text-xs bg-muted px-1 py-0.5 rounded">AWS_CONFIG_FILE</code> to use
                                     its managed config.
                                 </li>

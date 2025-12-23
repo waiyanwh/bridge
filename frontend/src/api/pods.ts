@@ -87,6 +87,7 @@ export interface StatefulSetInfo {
     desiredCount: number
     images: string[]
     age: string
+    selector?: Record<string, string>
 }
 
 export interface DaemonSetInfo {
@@ -98,6 +99,8 @@ export interface DaemonSetInfo {
     available: number
     images: string[]
     age: string
+    selector?: Record<string, string>
+    nodeSelector?: Record<string, string>
 }
 
 export interface CronJobInfo {

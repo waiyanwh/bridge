@@ -10,7 +10,6 @@ export function useHPAs(namespace: string = 'default') {
     return useQuery<HPAResponse, Error>({
         queryKey: ['hpas', namespace],
         queryFn: () => fetchHPAs(namespace),
-        refetchInterval: 10000,
     })
 }
 
@@ -18,6 +17,5 @@ export function useEvents(namespace: string = 'default') {
     return useQuery<EventsResponse, Error>({
         queryKey: ['events', namespace],
         queryFn: () => fetchEvents(namespace),
-        refetchInterval: 5000, // Events should refresh more frequently
     })
 }

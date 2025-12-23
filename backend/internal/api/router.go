@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/waiyan/bridge/internal/api/handlers"
+	"github.com/waiyan/bridge/internal/api/middleware"
 	"github.com/waiyan/bridge/internal/k8s"
 	"github.com/waiyan/bridge/internal/tunnel"
 )
@@ -44,8 +45,10 @@ func SetupRoutes(router *gin.Engine, k8sService *k8s.Service) {
 	awsHandler := handlers.NewAWSHandler(k8sService)
 	awsSSOHandler := handlers.NewAWSSSOHandler(k8sService)
 
-	// API v1 group
+	// API v1 group with ETag middleware for caching
+	// The ETag middleware automatically skips WebSocket/streaming endpoints
 	v1 := router.Group("/api/v1")
+	v1.Use(middleware.ETag())
 	{
 		// Context endpoints (cluster switching)
 		v1.GET("/contexts", contextHandler.ListContexts)

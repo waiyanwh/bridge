@@ -33,9 +33,11 @@ const podColors = [
 interface AggregatedLogsProps {
     selector: string
     namespace: string
+    resourceType?: string
+    resourceName?: string
 }
 
-export function AggregatedLogs({ selector, namespace }: AggregatedLogsProps) {
+export function AggregatedLogs({ selector, namespace, resourceType, resourceName }: AggregatedLogsProps) {
     const [logs, setLogs] = useState<LogLine[]>([])
     const [pods, setPods] = useState<string[]>([])
     const [isConnected, setIsConnected] = useState(false)
@@ -71,7 +73,12 @@ export function AggregatedLogs({ selector, namespace }: AggregatedLogsProps) {
         let isActive = true
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-        const wsUrl = `${protocol}//${window.location.host}/api/v1/logs/stream?selector=${encodeURIComponent(selector)}&namespace=${encodeURIComponent(namespace)}`
+        let wsUrl = `${protocol}//${window.location.host}/api/v1/logs/stream?selector=${encodeURIComponent(selector)}&namespace=${encodeURIComponent(namespace)}`
+
+        // Add type and name for workload-based pod resolution
+        if (resourceType && resourceName) {
+            wsUrl += `&type=${encodeURIComponent(resourceType)}&name=${encodeURIComponent(resourceName)}`
+        }
 
         console.log('[AggregatedLogs] Connecting to:', wsUrl)
 
@@ -156,7 +163,7 @@ export function AggregatedLogs({ selector, namespace }: AggregatedLogsProps) {
             isActive = false
             ws.close()
         }
-    }, [selector, namespace]) // Removed isPaused - use ref instead
+    }, [selector, namespace, resourceType, resourceName]) // Removed isPaused - use ref instead
 
     // Auto-scroll to bottom
     useEffect(() => {

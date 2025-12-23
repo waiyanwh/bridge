@@ -5,7 +5,6 @@ export function useConfigMaps(namespace: string = 'default') {
     return useQuery<ConfigMapsResponse, Error>({
         queryKey: ['configmaps', namespace],
         queryFn: () => fetchConfigMaps(namespace),
-        refetchInterval: 30000,
     })
 }
 
@@ -13,6 +12,5 @@ export function useSecrets(namespace: string = 'default') {
     return useQuery<SecretsResponse, Error>({
         queryKey: ['secrets', namespace],
         queryFn: () => fetchSecrets(namespace),
-        refetchInterval: 30000,
     })
 }
