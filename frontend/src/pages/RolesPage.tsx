@@ -19,6 +19,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import { TableEmptyState } from '@/components/ui/table-empty-state'
 import type { RoleInfo, PolicyRule } from '@/api'
 
 export function RolesPage() {
@@ -135,15 +136,16 @@ export function RolesPage() {
 function RolesTable({ roles, onSelectRole }: { roles: RoleInfo[]; onSelectRole: (role: RoleInfo) => void }) {
     if (roles.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Shield className="h-8 w-8 text-muted-foreground/50" />
-                <p className="mt-2 text-muted-foreground">No Roles found</p>
-            </div>
+            <TableEmptyState
+                icon={Shield}
+                title="No Roles found"
+                description="There are no Roles in this namespace."
+            />
         )
     }
 
     return (
-        <div className="rounded-md border">
+        <div className="rounded-lg border bg-card">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -158,17 +160,27 @@ function RolesTable({ roles, onSelectRole }: { roles: RoleInfo[]; onSelectRole: 
                     {roles.map((role) => (
                         <TableRow
                             key={`${role.namespace}/${role.name}`}
-                            className="cursor-pointer hover:bg-muted/50"
+                            clickable
                             onClick={() => onSelectRole(role)}
                         >
-                            <TableCell className="font-mono text-sm font-medium">{role.name}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{role.namespace}</TableCell>
+                            {/* Name - monospace */}
+                            <TableCell className="font-mono text-xs text-muted-foreground">
+                                {role.name}
+                            </TableCell>
+                            {/* Namespace */}
+                            <TableCell className="text-sm text-muted-foreground">
+                                {role.namespace}
+                            </TableCell>
+                            {/* Rules count */}
                             <TableCell>
                                 <Badge variant="secondary">
                                     {role.rules.length} rule{role.rules.length !== 1 ? 's' : ''}
                                 </Badge>
                             </TableCell>
-                            <TableCell className="text-muted-foreground">{role.age}</TableCell>
+                            {/* Age */}
+                            <TableCell className="text-muted-foreground text-sm">
+                                {role.age}
+                            </TableCell>
                             <TableCell>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
                             </TableCell>
@@ -189,9 +201,9 @@ function RuleCard({ rule }: { rule: PolicyRule }) {
         <div className="rounded-md border bg-muted/30 p-3 space-y-2">
             <div className="flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground">can</span>
-                <span className="font-medium text-green-400">{verbStr}</span>
+                <span className="font-medium text-emerald-500">{verbStr}</span>
                 <span className="text-muted-foreground">on</span>
-                <span className="font-medium text-blue-400">{resourceStr}</span>
+                <span className="font-medium text-blue-500">{resourceStr}</span>
             </div>
             <div className="text-xs text-muted-foreground">
                 API Group: <code className="bg-muted px-1 rounded">{apiGroupStr}</code>

@@ -13,6 +13,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import { TableEmptyState } from '@/components/ui/table-empty-state'
 import { IngressDetailSheet } from '@/components/IngressDetailSheet'
 import type { IngressInfo } from '@/api'
 
@@ -92,15 +93,16 @@ export function IngressesPage() {
 function IngressesTable({ ingresses, onRowClick }: { ingresses: IngressInfo[], onRowClick: (ing: IngressInfo) => void }) {
     if (ingresses.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Network className="h-8 w-8 text-muted-foreground/50" />
-                <p className="mt-2 text-muted-foreground">No Ingresses found</p>
-            </div>
+            <TableEmptyState
+                icon={Network}
+                title="No Ingresses found"
+                description="There are no Ingresses in this namespace."
+            />
         )
     }
 
     return (
-        <div className="rounded-md border">
+        <div className="rounded-lg border bg-card">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -116,11 +118,18 @@ function IngressesTable({ ingresses, onRowClick }: { ingresses: IngressInfo[], o
                     {ingresses.map((ing) => (
                         <TableRow
                             key={`${ing.namespace}/${ing.name}`}
-                            className="cursor-pointer hover:bg-muted/50"
+                            clickable
                             onClick={() => onRowClick(ing)}
                         >
-                            <TableCell className="font-mono text-sm font-medium">{ing.name}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{ing.namespace}</TableCell>
+                            {/* Name - monospace */}
+                            <TableCell className="font-mono text-xs text-muted-foreground">
+                                {ing.name}
+                            </TableCell>
+                            {/* Namespace */}
+                            <TableCell className="text-sm text-muted-foreground">
+                                {ing.namespace}
+                            </TableCell>
+                            {/* Class */}
                             <TableCell>
                                 {ing.class ? (
                                     <Badge variant="secondary">{ing.class}</Badge>
@@ -128,6 +137,7 @@ function IngressesTable({ ingresses, onRowClick }: { ingresses: IngressInfo[], o
                                     <span className="text-muted-foreground">-</span>
                                 )}
                             </TableCell>
+                            {/* Hosts */}
                             <TableCell>
                                 <div className="flex flex-col gap-1">
                                     {ing.hosts.length > 0 ? (
@@ -141,10 +151,14 @@ function IngressesTable({ ingresses, onRowClick }: { ingresses: IngressInfo[], o
                                     )}
                                 </div>
                             </TableCell>
-                            <TableCell className="font-mono text-sm">
+                            {/* Address - monospace */}
+                            <TableCell className="font-mono text-xs text-muted-foreground">
                                 {ing.address || <span className="text-muted-foreground">Pending</span>}
                             </TableCell>
-                            <TableCell className="text-muted-foreground">{ing.age}</TableCell>
+                            {/* Age */}
+                            <TableCell className="text-muted-foreground text-sm">
+                                {ing.age}
+                            </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>

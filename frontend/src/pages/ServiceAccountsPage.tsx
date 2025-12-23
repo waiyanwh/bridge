@@ -13,6 +13,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import { TableEmptyState } from '@/components/ui/table-empty-state'
 import {
     Sheet,
     SheetContent,
@@ -138,15 +139,16 @@ export function ServiceAccountsPage() {
 function ServiceAccountsTable({ serviceAccounts, onRowClick }: { serviceAccounts: ServiceAccountInfo[], onRowClick: (sa: ServiceAccountInfo) => void }) {
     if (serviceAccounts.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-                <User className="h-8 w-8 text-muted-foreground/50" />
-                <p className="mt-2 text-muted-foreground">No Service Accounts found</p>
-            </div>
+            <TableEmptyState
+                icon={User}
+                title="No Service Accounts found"
+                description="There are no Service Accounts in this namespace."
+            />
         )
     }
 
     return (
-        <div className="rounded-md border">
+        <div className="rounded-lg border bg-card">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -160,17 +162,27 @@ function ServiceAccountsTable({ serviceAccounts, onRowClick }: { serviceAccounts
                     {serviceAccounts.map((sa) => (
                         <TableRow
                             key={`${sa.namespace}/${sa.name}`}
-                            className="cursor-pointer hover:bg-muted/50"
+                            clickable
                             onClick={() => onRowClick(sa)}
                         >
-                            <TableCell className="font-mono text-sm font-medium">{sa.name}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{sa.namespace}</TableCell>
+                            {/* Name - monospace */}
+                            <TableCell className="font-mono text-xs text-muted-foreground">
+                                {sa.name}
+                            </TableCell>
+                            {/* Namespace */}
+                            <TableCell className="text-sm text-muted-foreground">
+                                {sa.namespace}
+                            </TableCell>
+                            {/* Secrets count */}
                             <TableCell>
                                 <Badge variant="secondary">
                                     {sa.secretsCount} secret{sa.secretsCount !== 1 ? 's' : ''}
                                 </Badge>
                             </TableCell>
-                            <TableCell className="text-muted-foreground">{sa.age}</TableCell>
+                            {/* Age */}
+                            <TableCell className="text-muted-foreground text-sm">
+                                {sa.age}
+                            </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>

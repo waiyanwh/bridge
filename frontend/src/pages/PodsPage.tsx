@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import { RefreshCw, Search, AlertCircle } from 'lucide-react'
+import { RefreshCw, Search, AlertCircle, Box } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { usePods } from '@/hooks'
+import { useNamespaceStore } from '@/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -12,14 +14,20 @@ import {
     TableRow,
 } from '@/components/ui/table'
 import { StatusDot, getPodStatusType } from '@/components/ui/status-dot'
-import { EmptyPods, EmptySearch } from '@/components/ui/table-empty-state'
+import { TableEmptyState, EmptySearch } from '@/components/ui/table-empty-state'
 import type { Pod } from '@/types'
 
 export function PodsPage() {
-    const [namespace] = useState('default')
+    const queryClient = useQueryClient()
+    const { selectedNamespace } = useNamespaceStore()
+    const namespace = selectedNamespace === 'all' ? '' : selectedNamespace
     const [searchQuery, setSearchQuery] = useState('')
 
-    const { data, isLoading, isError, error, refetch, isFetching } = usePods(namespace)
+    const { data, isLoading, isError, error, isFetching } = usePods(namespace)
+
+    const handleRefresh = () => {
+        queryClient.invalidateQueries({ queryKey: ['pods', namespace] })
+    }
 
     // Filter pods by search query
     const filteredPods = data?.pods.filter((pod: Pod) =>
@@ -35,13 +43,15 @@ export function PodsPage() {
                 <div>
                     <h1 className="text-2xl font-semibold tracking-tight">Pods</h1>
                     <p className="text-sm text-muted-foreground">
-                        {data ? `${data.count} pods in namespace "${data.namespace}"` : 'Loading pods...'}
+                        {data
+                            ? `${data.count} pods${selectedNamespace === 'all' ? ' across all namespaces' : ` in "${selectedNamespace}"`}`
+                            : 'Loading...'}
                     </p>
                 </div>
                 <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => refetch()}
+                    onClick={handleRefresh}
                     disabled={isFetching}
                     className="gap-2"
                 >
@@ -81,64 +91,88 @@ export function PodsPage() {
 
             {/* Pods Table */}
             {!isLoading && !isError && (
-                <div className="rounded-lg border bg-card">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-[300px]">Name</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-center">Restarts</TableHead>
-                                <TableHead>Age</TableHead>
-                                <TableHead>IP</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredPods.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="p-0">
-                                        {searchQuery ? (
-                                            <EmptySearch query={searchQuery} />
-                                        ) : (
-                                            <EmptyPods />
-                                        )}
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                filteredPods.map((pod: Pod) => (
-                                    <TableRow key={pod.name} clickable>
-                                        {/* Name - monospace, secondary color */}
-                                        <TableCell className="font-mono text-xs text-muted-foreground">
-                                            {pod.name}
-                                        </TableCell>
-                                        {/* Status - Dot Badge */}
-                                        <TableCell>
-                                            <StatusDot
-                                                status={getPodStatusType(pod.status)}
-                                                label={pod.status}
-                                                withBackground
-                                            />
-                                        </TableCell>
-                                        {/* Restarts */}
-                                        <TableCell className="text-center">
-                                            <span className={pod.restarts > 0 ? 'text-amber-400 font-medium' : 'text-muted-foreground'}>
-                                                {pod.restarts}
-                                            </span>
-                                        </TableCell>
-                                        {/* Age */}
-                                        <TableCell className="text-muted-foreground text-sm">
-                                            {pod.age}
-                                        </TableCell>
-                                        {/* IP - monospace */}
-                                        <TableCell className="font-mono text-xs text-muted-foreground">
-                                            {pod.ip || '-'}
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
+                <PodsTable
+                    pods={filteredPods}
+                    showNamespace={selectedNamespace === 'all'}
+                    searchQuery={searchQuery}
+                />
             )}
+        </div>
+    )
+}
+
+interface PodsTableProps {
+    pods: Pod[]
+    showNamespace?: boolean
+    searchQuery?: string
+}
+
+function PodsTable({ pods, showNamespace = false, searchQuery }: PodsTableProps) {
+    if (pods.length === 0) {
+        if (searchQuery) {
+            return <EmptySearch query={searchQuery} />
+        }
+        return (
+            <TableEmptyState
+                icon={Box}
+                title="No pods found"
+                description="There are no pods in this namespace, or they don't match your current filters."
+            />
+        )
+    }
+
+    return (
+        <div className="rounded-lg border bg-card">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Name</TableHead>
+                        {showNamespace && <TableHead>Namespace</TableHead>}
+                        <TableHead>Status</TableHead>
+                        <TableHead>Restarts</TableHead>
+                        <TableHead>IP</TableHead>
+                        <TableHead>Age</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {pods.map((pod: Pod) => (
+                        <TableRow key={`${pod.namespace || 'default'}/${pod.name}`} clickable>
+                            {/* Name - monospace */}
+                            <TableCell className="font-mono text-xs text-muted-foreground">
+                                {pod.name}
+                            </TableCell>
+                            {/* Namespace (optional) */}
+                            {showNamespace && (
+                                <TableCell className="text-sm text-muted-foreground">
+                                    {pod.namespace || 'default'}
+                                </TableCell>
+                            )}
+                            {/* Status - Dot Badge */}
+                            <TableCell>
+                                <StatusDot
+                                    status={getPodStatusType(pod.status)}
+                                    label={pod.status}
+                                    withBackground
+                                />
+                            </TableCell>
+                            {/* Restarts */}
+                            <TableCell>
+                                <span className={pod.restarts > 0 ? 'text-amber-500 font-medium' : 'text-muted-foreground'}>
+                                    {pod.restarts}
+                                </span>
+                            </TableCell>
+                            {/* IP - monospace */}
+                            <TableCell className="font-mono text-xs text-muted-foreground">
+                                {pod.ip || '-'}
+                            </TableCell>
+                            {/* Age */}
+                            <TableCell className="text-muted-foreground text-sm">
+                                {pod.age}
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
         </div>
     )
 }

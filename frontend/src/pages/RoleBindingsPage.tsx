@@ -13,6 +13,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import { TableEmptyState } from '@/components/ui/table-empty-state'
 import {
     Sheet,
     SheetContent,
@@ -118,7 +119,7 @@ export function RoleBindingsPage() {
                                                 <Badge variant="secondary" className="text-xs">
                                                     {selectedRB.roleKind}
                                                 </Badge>
-                                                <span className="font-mono text-blue-400">{selectedRB.roleRef}</span>
+                                                <span className="font-mono text-xs text-muted-foreground">{selectedRB.roleRef}</span>
                                             </div>
                                         </div>
                                         <div>
@@ -150,15 +151,16 @@ export function RoleBindingsPage() {
 function RoleBindingsTable({ roleBindings, onRowClick }: { roleBindings: RoleBindingInfo[], onRowClick: (rb: RoleBindingInfo) => void }) {
     if (roleBindings.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Link className="h-8 w-8 text-muted-foreground/50" />
-                <p className="mt-2 text-muted-foreground">No Role Bindings found</p>
-            </div>
+            <TableEmptyState
+                icon={Link}
+                title="No Role Bindings found"
+                description="There are no Role Bindings in this namespace."
+            />
         )
     }
 
     return (
-        <div className="rounded-md border">
+        <div className="rounded-lg border bg-card">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -173,19 +175,27 @@ function RoleBindingsTable({ roleBindings, onRowClick }: { roleBindings: RoleBin
                     {roleBindings.map((rb) => (
                         <TableRow
                             key={`${rb.namespace}/${rb.name}`}
-                            className="cursor-pointer hover:bg-muted/50"
+                            clickable
                             onClick={() => onRowClick(rb)}
                         >
-                            <TableCell className="font-mono text-sm font-medium">{rb.name}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{rb.namespace}</TableCell>
+                            {/* Name - monospace */}
+                            <TableCell className="font-mono text-xs text-muted-foreground">
+                                {rb.name}
+                            </TableCell>
+                            {/* Namespace */}
+                            <TableCell className="text-sm text-muted-foreground">
+                                {rb.namespace}
+                            </TableCell>
+                            {/* Role */}
                             <TableCell>
                                 <div className="flex items-center gap-2">
                                     <Badge variant="secondary" className="text-xs">
                                         {rb.roleKind}
                                     </Badge>
-                                    <span className="font-mono text-sm text-blue-400">{rb.roleRef}</span>
+                                    <span className="font-mono text-xs text-muted-foreground">{rb.roleRef}</span>
                                 </div>
                             </TableCell>
+                            {/* Subjects */}
                             <TableCell>
                                 <div className="flex flex-wrap gap-1 max-w-[300px]">
                                     {rb.subjects.slice(0, 3).map((subject, idx) => (
@@ -200,7 +210,10 @@ function RoleBindingsTable({ roleBindings, onRowClick }: { roleBindings: RoleBin
                                     )}
                                 </div>
                             </TableCell>
-                            <TableCell className="text-muted-foreground">{rb.age}</TableCell>
+                            {/* Age */}
+                            <TableCell className="text-muted-foreground text-sm">
+                                {rb.age}
+                            </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>

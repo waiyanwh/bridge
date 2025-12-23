@@ -12,6 +12,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import { TableEmptyState } from '@/components/ui/table-empty-state'
 import {
     Sheet,
     SheetContent,
@@ -88,7 +89,7 @@ export function ClusterRoleBindingsPage() {
                                 className="border-b border-border px-6 py-4"
                                 resourceKind="clusterrolebindings"
                                 resourceName={selectedCRB.name}
-                                namespace="" // Cluster-scoped
+                                namespace=""
                                 onYamlSuccess={handleRefresh}
                             >
                                 <div className="flex items-center gap-3">
@@ -113,7 +114,7 @@ export function ClusterRoleBindingsPage() {
                                                 <Badge variant="secondary" className="text-xs">
                                                     {selectedCRB.roleKind}
                                                 </Badge>
-                                                <span className="font-mono text-blue-400">{selectedCRB.roleRef}</span>
+                                                <span className="font-mono text-xs text-muted-foreground">{selectedCRB.roleRef}</span>
                                             </div>
                                         </div>
                                         <div>
@@ -145,15 +146,16 @@ export function ClusterRoleBindingsPage() {
 function ClusterRoleBindingsTable({ clusterRoleBindings, onRowClick }: { clusterRoleBindings: ClusterRoleBindingInfo[], onRowClick: (crb: ClusterRoleBindingInfo) => void }) {
     if (clusterRoleBindings.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Link className="h-8 w-8 text-muted-foreground/50" />
-                <p className="mt-2 text-muted-foreground">No Cluster Role Bindings found</p>
-            </div>
+            <TableEmptyState
+                icon={Link}
+                title="No Cluster Role Bindings found"
+                description="There are no Cluster Role Bindings in the cluster."
+            />
         )
     }
 
     return (
-        <div className="rounded-md border">
+        <div className="rounded-lg border bg-card">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -167,18 +169,23 @@ function ClusterRoleBindingsTable({ clusterRoleBindings, onRowClick }: { cluster
                     {clusterRoleBindings.map((crb) => (
                         <TableRow
                             key={crb.name}
-                            className="cursor-pointer hover:bg-muted/50"
+                            clickable
                             onClick={() => onRowClick(crb)}
                         >
-                            <TableCell className="font-mono text-sm font-medium">{crb.name}</TableCell>
+                            {/* Name - monospace */}
+                            <TableCell className="font-mono text-xs text-muted-foreground">
+                                {crb.name}
+                            </TableCell>
+                            {/* Role */}
                             <TableCell>
                                 <div className="flex items-center gap-2">
                                     <Badge variant="secondary" className="text-xs">
                                         {crb.roleKind}
                                     </Badge>
-                                    <span className="font-mono text-sm text-blue-400">{crb.roleRef}</span>
+                                    <span className="font-mono text-xs text-muted-foreground">{crb.roleRef}</span>
                                 </div>
                             </TableCell>
+                            {/* Subjects */}
                             <TableCell>
                                 <div className="flex flex-wrap gap-1 max-w-[300px]">
                                     {crb.subjects.slice(0, 3).map((subject, idx) => (
@@ -193,7 +200,10 @@ function ClusterRoleBindingsTable({ clusterRoleBindings, onRowClick }: { cluster
                                     )}
                                 </div>
                             </TableCell>
-                            <TableCell className="text-muted-foreground">{crb.age}</TableCell>
+                            {/* Age */}
+                            <TableCell className="text-muted-foreground text-sm">
+                                {crb.age}
+                            </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
