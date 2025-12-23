@@ -1,10 +1,8 @@
-import { useState } from 'react'
-import { RefreshCw, Search, AlertCircle, Box } from 'lucide-react'
+import { RefreshCw, AlertCircle, Box } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { usePods } from '@/hooks'
 import { useNamespaceStore } from '@/store'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
     Table,
     TableBody,
@@ -14,27 +12,19 @@ import {
     TableRow,
 } from '@/components/ui/table'
 import { StatusDot, getPodStatusType } from '@/components/ui/status-dot'
-import { TableEmptyState, EmptySearch } from '@/components/ui/table-empty-state'
+import { TableEmptyState } from '@/components/ui/table-empty-state'
 import type { Pod } from '@/types'
 
 export function PodsPage() {
     const queryClient = useQueryClient()
     const { selectedNamespace } = useNamespaceStore()
     const namespace = selectedNamespace === 'all' ? '' : selectedNamespace
-    const [searchQuery, setSearchQuery] = useState('')
 
     const { data, isLoading, isError, error, isFetching } = usePods(namespace)
 
     const handleRefresh = () => {
         queryClient.invalidateQueries({ queryKey: ['pods', namespace] })
     }
-
-    // Filter pods by search query
-    const filteredPods = data?.pods.filter((pod: Pod) =>
-        pod.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        pod.ip.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        pod.status.toLowerCase().includes(searchQuery.toLowerCase())
-    ) ?? []
 
     return (
         <div className="space-y-6">
@@ -60,17 +50,6 @@ export function PodsPage() {
                 </Button>
             </div>
 
-            {/* Search Bar */}
-            <div className="relative max-w-sm">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                    placeholder="Search pods..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
-                />
-            </div>
-
             {/* Error State */}
             {isError && (
                 <div className="flex items-center gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
@@ -90,11 +69,10 @@ export function PodsPage() {
             )}
 
             {/* Pods Table */}
-            {!isLoading && !isError && (
+            {!isLoading && !isError && data && (
                 <PodsTable
-                    pods={filteredPods}
+                    pods={data.pods}
                     showNamespace={selectedNamespace === 'all'}
-                    searchQuery={searchQuery}
                 />
             )}
         </div>
@@ -104,19 +82,15 @@ export function PodsPage() {
 interface PodsTableProps {
     pods: Pod[]
     showNamespace?: boolean
-    searchQuery?: string
 }
 
-function PodsTable({ pods, showNamespace = false, searchQuery }: PodsTableProps) {
+function PodsTable({ pods, showNamespace = false }: PodsTableProps) {
     if (pods.length === 0) {
-        if (searchQuery) {
-            return <EmptySearch query={searchQuery} />
-        }
         return (
             <TableEmptyState
                 icon={Box}
                 title="No pods found"
-                description="There are no pods in this namespace, or they don't match your current filters."
+                description="There are no pods in this namespace."
             />
         )
     }
@@ -147,7 +121,7 @@ function PodsTable({ pods, showNamespace = false, searchQuery }: PodsTableProps)
                                     {pod.namespace || 'default'}
                                 </TableCell>
                             )}
-                            {/* Status - Dot Badge */}
+                            {/* Status - Dot Badge with background */}
                             <TableCell>
                                 <StatusDot
                                     status={getPodStatusType(pod.status)}
@@ -157,7 +131,7 @@ function PodsTable({ pods, showNamespace = false, searchQuery }: PodsTableProps)
                             </TableCell>
                             {/* Restarts */}
                             <TableCell>
-                                <span className={pod.restarts > 0 ? 'text-amber-500 font-medium' : 'text-muted-foreground'}>
+                                <span className={pod.restarts > 0 ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-muted-foreground'}>
                                     {pod.restarts}
                                 </span>
                             </TableCell>
