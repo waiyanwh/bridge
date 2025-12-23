@@ -1,4 +1,3 @@
-import { Server } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
     Table,
@@ -8,6 +7,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import { StatusDot } from '@/components/ui/status-dot'
+import { EmptyDeployments } from '@/components/ui/table-empty-state'
 import type { DeploymentInfo } from '@/api'
 
 interface DeploymentsTableProps {
@@ -17,16 +18,11 @@ interface DeploymentsTableProps {
 
 export function DeploymentsTable({ deployments, onRowClick }: DeploymentsTableProps) {
     if (deployments.length === 0) {
-        return (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Server className="h-8 w-8 text-muted-foreground/50" />
-                <p className="mt-2 text-muted-foreground">No Deployments found</p>
-            </div>
-        )
+        return <EmptyDeployments />
     }
 
     return (
-        <div className="rounded-md border">
+        <div className="rounded-lg border bg-card">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -38,40 +34,52 @@ export function DeploymentsTable({ deployments, onRowClick }: DeploymentsTablePr
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {deployments.map((d) => (
-                        <TableRow
-                            key={`${d.namespace}/${d.name}`}
-                            className="cursor-pointer hover:bg-muted/50"
-                            onClick={() => onRowClick(d)}
-                        >
-                            <TableCell className="font-mono text-sm font-medium">{d.name}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{d.namespace}</TableCell>
-                            <TableCell>
-                                <span className={
-                                    d.readyCount < d.desiredCount
-                                        ? 'font-medium text-amber-400'
-                                        : 'text-green-400'
-                                }>
-                                    {d.replicas}
-                                </span>
-                            </TableCell>
-                            <TableCell>
-                                <div className="flex flex-wrap gap-1 max-w-[300px]">
-                                    {d.images.map((image, idx) => (
-                                        <Badge
-                                            key={idx}
-                                            variant="secondary"
-                                            className="font-mono text-xs truncate max-w-[250px]"
-                                            title={image}
-                                        >
-                                            {image.split('/').pop()?.split('@')[0] || image}
-                                        </Badge>
-                                    ))}
-                                </div>
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">{d.age}</TableCell>
-                        </TableRow>
-                    ))}
+                    {deployments.map((d) => {
+                        const isHealthy = d.readyCount >= d.desiredCount
+                        return (
+                            <TableRow
+                                key={`${d.namespace}/${d.name}`}
+                                clickable
+                                onClick={() => onRowClick(d)}
+                            >
+                                {/* Name - monospace */}
+                                <TableCell className="font-mono text-xs text-muted-foreground">
+                                    {d.name}
+                                </TableCell>
+                                {/* Namespace */}
+                                <TableCell className="text-sm text-muted-foreground">
+                                    {d.namespace}
+                                </TableCell>
+                                {/* Replicas - dot status */}
+                                <TableCell>
+                                    <StatusDot
+                                        status={isHealthy ? 'success' : 'warning'}
+                                        label={d.replicas}
+                                        withBackground
+                                    />
+                                </TableCell>
+                                {/* Images */}
+                                <TableCell>
+                                    <div className="flex flex-wrap gap-1 max-w-[300px]">
+                                        {d.images.map((image, idx) => (
+                                            <Badge
+                                                key={idx}
+                                                variant="secondary"
+                                                className="font-mono text-xs truncate max-w-[250px]"
+                                                title={image}
+                                            >
+                                                {image.split('/').pop()?.split('@')[0] || image}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                </TableCell>
+                                {/* Age */}
+                                <TableCell className="text-muted-foreground text-sm">
+                                    {d.age}
+                                </TableCell>
+                            </TableRow>
+                        )
+                    })}
                 </TableBody>
             </Table>
         </div>

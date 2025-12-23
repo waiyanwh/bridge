@@ -1,5 +1,4 @@
 import { Layers, Cable } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
     Table,
@@ -9,6 +8,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import { StatusDot } from '@/components/ui/status-dot'
+import { TableEmptyState } from '@/components/ui/table-empty-state'
 import type { ServiceInfo } from '@/api'
 
 interface ServicesTableProps {
@@ -20,15 +21,16 @@ interface ServicesTableProps {
 export function ServicesTable({ services, onForwardPort, onRowClick }: ServicesTableProps) {
     if (services.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Layers className="h-8 w-8 text-muted-foreground/50" />
-                <p className="mt-2 text-muted-foreground">No Services found</p>
-            </div>
+            <TableEmptyState
+                icon={Layers}
+                title="No services found"
+                description="There are no services in this namespace."
+            />
         )
     }
 
     return (
-        <div className="rounded-md border">
+        <div className="rounded-lg border bg-card">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -45,13 +47,30 @@ export function ServicesTable({ services, onForwardPort, onRowClick }: ServicesT
                     {services.map((svc) => (
                         <TableRow
                             key={`${svc.namespace}/${svc.name}`}
-                            className="cursor-pointer hover:bg-muted/50"
+                            clickable
                             onClick={() => onRowClick(svc)}
                         >
-                            <TableCell className="font-mono text-sm font-medium">{svc.name}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{svc.namespace}</TableCell>
-                            <TableCell>{getServiceTypeBadge(svc.type)}</TableCell>
-                            <TableCell className="font-mono text-sm">{svc.clusterIP}</TableCell>
+                            {/* Name - monospace */}
+                            <TableCell className="font-mono text-xs text-muted-foreground">
+                                {svc.name}
+                            </TableCell>
+                            {/* Namespace */}
+                            <TableCell className="text-sm text-muted-foreground">
+                                {svc.namespace}
+                            </TableCell>
+                            {/* Type - dot badge */}
+                            <TableCell>
+                                <StatusDot
+                                    status={getServiceTypeStatus(svc.type)}
+                                    label={svc.type}
+                                    withBackground
+                                />
+                            </TableCell>
+                            {/* Cluster IP - monospace */}
+                            <TableCell className="font-mono text-xs text-muted-foreground">
+                                {svc.clusterIP}
+                            </TableCell>
+                            {/* Ports */}
                             <TableCell>
                                 <div className="flex flex-wrap gap-1">
                                     {svc.ports.map((port, idx) => (
@@ -64,7 +83,11 @@ export function ServicesTable({ services, onForwardPort, onRowClick }: ServicesT
                                     ))}
                                 </div>
                             </TableCell>
-                            <TableCell className="text-muted-foreground">{svc.age}</TableCell>
+                            {/* Age */}
+                            <TableCell className="text-muted-foreground text-sm">
+                                {svc.age}
+                            </TableCell>
+                            {/* Forward button */}
                             {onForwardPort && (
                                 <TableCell>
                                     <Button
@@ -86,17 +109,17 @@ export function ServicesTable({ services, onForwardPort, onRowClick }: ServicesT
     )
 }
 
-function getServiceTypeBadge(type: string) {
+function getServiceTypeStatus(type: string): 'success' | 'warning' | 'info' | 'default' {
     switch (type) {
         case 'LoadBalancer':
-            return <Badge className="bg-blue-500/20 text-blue-400 hover:bg-blue-500/30">{type}</Badge>
+            return 'info'
         case 'NodePort':
-            return <Badge className="bg-purple-500/20 text-purple-400 hover:bg-purple-500/30">{type}</Badge>
+            return 'warning'
         case 'ClusterIP':
-            return <Badge variant="secondary">{type}</Badge>
+            return 'default'
         case 'ExternalName':
-            return <Badge className="bg-amber-500/20 text-amber-400 hover:bg-amber-500/30">{type}</Badge>
+            return 'warning'
         default:
-            return <Badge variant="secondary">{type}</Badge>
+            return 'default'
     }
 }

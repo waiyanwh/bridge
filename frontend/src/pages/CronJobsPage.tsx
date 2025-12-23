@@ -4,7 +4,6 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCronJobs } from '@/hooks'
 import { useNamespaceStore } from '@/store'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
     Table,
     TableBody,
@@ -13,6 +12,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import { StatusDot } from '@/components/ui/status-dot'
+import { TableEmptyState } from '@/components/ui/table-empty-state'
 import {
     Sheet,
     SheetContent,
@@ -142,15 +143,16 @@ export function CronJobsPage() {
 function CronJobsTable({ cronJobs, onRowClick }: { cronJobs: CronJobInfo[], onRowClick: (cj: CronJobInfo) => void }) {
     if (cronJobs.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Clock className="h-8 w-8 text-muted-foreground/50" />
-                <p className="mt-2 text-muted-foreground">No CronJobs found</p>
-            </div>
+            <TableEmptyState
+                icon={Clock}
+                title="No CronJobs found"
+                description="There are no CronJobs in this namespace."
+            />
         )
     }
 
     return (
-        <div className="rounded-md border">
+        <div className="rounded-lg border bg-card">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -159,7 +161,7 @@ function CronJobsTable({ cronJobs, onRowClick }: { cronJobs: CronJobInfo[], onRo
                         <TableHead>Schedule</TableHead>
                         <TableHead>Last Run</TableHead>
                         <TableHead>Active</TableHead>
-                        <TableHead>Suspend</TableHead>
+                        <TableHead>Status</TableHead>
                         <TableHead>Age</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -167,33 +169,46 @@ function CronJobsTable({ cronJobs, onRowClick }: { cronJobs: CronJobInfo[], onRo
                     {cronJobs.map((cj) => (
                         <TableRow
                             key={`${cj.namespace}/${cj.name}`}
-                            className="cursor-pointer hover:bg-muted/50"
+                            clickable
                             onClick={() => onRowClick(cj)}
                         >
-                            <TableCell className="font-mono text-sm font-medium">{cj.name}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{cj.namespace}</TableCell>
+                            {/* Name - monospace */}
+                            <TableCell className="font-mono text-xs text-muted-foreground">
+                                {cj.name}
+                            </TableCell>
+                            {/* Namespace */}
+                            <TableCell className="text-sm text-muted-foreground">
+                                {cj.namespace}
+                            </TableCell>
+                            {/* Schedule */}
                             <TableCell>
                                 <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
                                     {cj.schedule}
                                 </code>
                             </TableCell>
+                            {/* Last Run */}
                             <TableCell className="text-sm text-muted-foreground">
-                                {cj.lastScheduleTime}
+                                {cj.lastScheduleTime || '-'}
                             </TableCell>
+                            {/* Active - dot status */}
                             <TableCell>
-                                <div className="flex items-center gap-2">
-                                    <span className={`h-2 w-2 rounded-full ${cj.active > 0 ? 'bg-green-400' : 'bg-muted-foreground/30'}`} />
-                                    <span className="text-sm">{cj.active}</span>
-                                </div>
+                                <StatusDot
+                                    status={cj.active > 0 ? 'success' : 'default'}
+                                    label={String(cj.active)}
+                                />
                             </TableCell>
+                            {/* Suspend Status */}
                             <TableCell>
-                                {cj.suspend ? (
-                                    <Badge variant="secondary" className="text-amber-400">Suspended</Badge>
-                                ) : (
-                                    <Badge variant="secondary" className="text-green-400">Active</Badge>
-                                )}
+                                <StatusDot
+                                    status={cj.suspend ? 'warning' : 'success'}
+                                    label={cj.suspend ? 'Suspended' : 'Active'}
+                                    withBackground
+                                />
                             </TableCell>
-                            <TableCell className="text-muted-foreground">{cj.age}</TableCell>
+                            {/* Age */}
+                            <TableCell className="text-muted-foreground text-sm">
+                                {cj.age}
+                            </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>

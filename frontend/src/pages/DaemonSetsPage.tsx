@@ -13,6 +13,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import { StatusDot } from '@/components/ui/status-dot'
+import { TableEmptyState } from '@/components/ui/table-empty-state'
 import { DaemonSetDetailSheet } from '@/components/DaemonSetDetailSheet'
 import type { DaemonSetInfo } from '@/api'
 
@@ -92,15 +94,16 @@ export function DaemonSetsPage() {
 function DaemonSetsTable({ daemonSets, onRowClick }: { daemonSets: DaemonSetInfo[], onRowClick: (ds: DaemonSetInfo) => void }) {
     if (daemonSets.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Layers className="h-8 w-8 text-muted-foreground/50" />
-                <p className="mt-2 text-muted-foreground">No DaemonSets found</p>
-            </div>
+            <TableEmptyState
+                icon={Layers}
+                title="No DaemonSets found"
+                description="There are no DaemonSets in this namespace."
+            />
         )
     }
 
     return (
-        <div className="rounded-md border">
+        <div className="rounded-lg border bg-card">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -113,41 +116,56 @@ function DaemonSetsTable({ daemonSets, onRowClick }: { daemonSets: DaemonSetInfo
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {daemonSets.map((ds) => (
-                        <TableRow
-                            key={`${ds.namespace}/${ds.name}`}
-                            className="cursor-pointer hover:bg-muted/50"
-                            onClick={() => onRowClick(ds)}
-                        >
-                            <TableCell className="font-mono text-sm font-medium">{ds.name}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{ds.namespace}</TableCell>
-                            <TableCell>{ds.desired}</TableCell>
-                            <TableCell>
-                                <span className={
-                                    ds.ready < ds.desired
-                                        ? 'font-medium text-amber-400'
-                                        : 'text-green-400'
-                                }>
-                                    {ds.ready}/{ds.desired}
-                                </span>
-                            </TableCell>
-                            <TableCell>
-                                <div className="flex flex-wrap gap-1 max-w-[300px]">
-                                    {ds.images.map((image, idx) => (
-                                        <Badge
-                                            key={idx}
-                                            variant="secondary"
-                                            className="font-mono text-xs truncate max-w-[250px]"
-                                            title={image}
-                                        >
-                                            {image.split('/').pop()?.split('@')[0] || image}
-                                        </Badge>
-                                    ))}
-                                </div>
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">{ds.age}</TableCell>
-                        </TableRow>
-                    ))}
+                    {daemonSets.map((ds) => {
+                        const isHealthy = ds.ready >= ds.desired
+                        return (
+                            <TableRow
+                                key={`${ds.namespace}/${ds.name}`}
+                                clickable
+                                onClick={() => onRowClick(ds)}
+                            >
+                                {/* Name - monospace */}
+                                <TableCell className="font-mono text-xs text-muted-foreground">
+                                    {ds.name}
+                                </TableCell>
+                                {/* Namespace */}
+                                <TableCell className="text-sm text-muted-foreground">
+                                    {ds.namespace}
+                                </TableCell>
+                                {/* Desired */}
+                                <TableCell className="text-sm">
+                                    {ds.desired}
+                                </TableCell>
+                                {/* Ready - dot status */}
+                                <TableCell>
+                                    <StatusDot
+                                        status={isHealthy ? 'success' : 'warning'}
+                                        label={`${ds.ready}/${ds.desired}`}
+                                        withBackground
+                                    />
+                                </TableCell>
+                                {/* Images */}
+                                <TableCell>
+                                    <div className="flex flex-wrap gap-1 max-w-[300px]">
+                                        {ds.images.map((image, idx) => (
+                                            <Badge
+                                                key={idx}
+                                                variant="secondary"
+                                                className="font-mono text-xs truncate max-w-[250px]"
+                                                title={image}
+                                            >
+                                                {image.split('/').pop()?.split('@')[0] || image}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                </TableCell>
+                                {/* Age */}
+                                <TableCell className="text-muted-foreground text-sm">
+                                    {ds.age}
+                                </TableCell>
+                            </TableRow>
+                        )
+                    })}
                 </TableBody>
             </Table>
         </div>

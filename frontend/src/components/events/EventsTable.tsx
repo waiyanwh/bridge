@@ -1,5 +1,4 @@
 import { Activity } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import {
     Table,
     TableBody,
@@ -8,6 +7,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import { StatusDot } from '@/components/ui/status-dot'
+import { TableEmptyState } from '@/components/ui/table-empty-state'
 import type { EventInfo } from '@/api'
 
 interface EventsTableProps {
@@ -17,15 +18,16 @@ interface EventsTableProps {
 export function EventsTable({ events }: EventsTableProps) {
     if (events.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Activity className="h-8 w-8 text-muted-foreground/50" />
-                <p className="mt-2 text-muted-foreground">No events found</p>
-            </div>
+            <TableEmptyState
+                icon={Activity}
+                title="No events found"
+                description="No events have been recorded in this namespace."
+            />
         )
     }
 
     return (
-        <div className="rounded-md border">
+        <div className="rounded-lg border bg-card">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -42,33 +44,36 @@ export function EventsTable({ events }: EventsTableProps) {
                             key={`${event.objectNs}/${event.objectName}-${event.reason}-${idx}`}
                             className={event.type === 'Warning' ? 'bg-red-500/5' : ''}
                         >
+                            {/* Type - Dot Badge */}
                             <TableCell>
-                                {event.type === 'Warning' ? (
-                                    <Badge className="bg-red-500/20 text-red-400 hover:bg-red-500/30">
-                                        Warning
-                                    </Badge>
-                                ) : (
-                                    <Badge variant="secondary">
-                                        Normal
-                                    </Badge>
-                                )}
+                                <StatusDot
+                                    status={event.type === 'Warning' ? 'error' : 'default'}
+                                    label={event.type}
+                                    withBackground
+                                />
                             </TableCell>
-                            <TableCell className="font-medium text-sm">{event.reason}</TableCell>
+                            {/* Reason */}
+                            <TableCell className="font-medium text-sm">
+                                {event.reason}
+                            </TableCell>
+                            {/* Object - monospace */}
                             <TableCell>
                                 <div className="flex flex-col">
-                                    <span className="font-mono text-sm">
+                                    <span className="font-mono text-xs text-muted-foreground">
                                         {event.objectKind}/{event.objectName}
                                     </span>
                                     {event.objectNs && (
-                                        <span className="text-xs text-muted-foreground">
+                                        <span className="text-xs text-muted-foreground/60">
                                             {event.objectNs}
                                         </span>
                                     )}
                                 </div>
                             </TableCell>
+                            {/* Message */}
                             <TableCell className="text-sm max-w-md truncate" title={event.message}>
                                 {event.message}
                             </TableCell>
+                            {/* Last Seen */}
                             <TableCell className="text-muted-foreground text-sm">
                                 {event.lastSeenAge || '-'}
                             </TableCell>

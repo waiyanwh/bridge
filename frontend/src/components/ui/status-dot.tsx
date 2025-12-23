@@ -1,29 +1,66 @@
 import { cn } from '@/lib/utils'
 
-type StatusType = 'success' | 'warning' | 'error' | 'default'
+type StatusType = 'success' | 'warning' | 'error' | 'default' | 'info'
 
 interface StatusDotProps {
     status: StatusType
     label: string
     className?: string
+    /** Show with background wrapper (pill style) */
+    withBackground?: boolean
 }
 
-const statusColors: Record<StatusType, string> = {
-    success: '#22c55e', // green-500
-    warning: '#f59e0b', // amber-500
-    error: '#ef4444',   // red-500
-    default: '#6b7280', // gray-500
+// Dot colors for each status
+const dotColors: Record<StatusType, string> = {
+    success: 'bg-emerald-400',
+    warning: 'bg-amber-400',
+    error: 'bg-red-400',
+    info: 'bg-blue-400',
+    default: 'bg-zinc-400',
 }
 
-export function StatusDot({ status, label, className }: StatusDotProps) {
-    return (
+// Text colors for each status
+const textColors: Record<StatusType, string> = {
+    success: 'text-emerald-400',
+    warning: 'text-amber-400',
+    error: 'text-red-400',
+    info: 'text-blue-400',
+    default: 'text-muted-foreground',
+}
+
+// Background colors for pill style (low opacity)
+const bgColors: Record<StatusType, string> = {
+    success: 'bg-emerald-500/10',
+    warning: 'bg-amber-500/10',
+    error: 'bg-red-500/10',
+    info: 'bg-blue-500/10',
+    default: 'bg-muted/50',
+}
+
+export function StatusDot({ status, label, className, withBackground = false }: StatusDotProps) {
+    const content = (
         <div className={cn('flex items-center gap-2', className)}>
-            <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                <circle cx="4" cy="4" r="4" fill={statusColors[status]} />
-            </svg>
-            <span className="text-sm">{label}</span>
+            {/* Dot */}
+            <div className={cn('h-2 w-2 rounded-full', dotColors[status])} />
+            {/* Label */}
+            <span className={cn('text-sm', withBackground ? textColors[status] : 'text-foreground')}>
+                {label}
+            </span>
         </div>
     )
+
+    if (withBackground) {
+        return (
+            <div className={cn(
+                'inline-flex items-center rounded-full px-2.5 py-1',
+                bgColors[status]
+            )}>
+                {content}
+            </div>
+        )
+    }
+
+    return content
 }
 
 // Helper to convert pod status to StatusType
