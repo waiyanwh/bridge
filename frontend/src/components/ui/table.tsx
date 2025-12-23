@@ -23,10 +23,10 @@ const TableHeader = React.forwardRef<
     <thead
         ref={ref}
         className={cn(
-            // Sticky header with backdrop blur
-            "sticky top-0 z-10 bg-background/95 backdrop-blur-sm",
+            // Sticky header with solid background
+            "sticky top-0 z-10 bg-muted/50",
             // Border below header
-            "[&_tr]:border-b [&_tr]:border-border/50",
+            "[&_tr]:border-b [&_tr]:border-border",
             className
         )}
         {...props}
@@ -40,7 +40,11 @@ const TableBody = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <tbody
         ref={ref}
-        className={cn("[&_tr:last-child]:border-0", className)}
+        className={cn(
+            "bg-background",
+            "[&_tr:last-child]:border-0",
+            className
+        )}
         {...props}
     />
 ))
@@ -68,14 +72,14 @@ const TableRow = React.forwardRef<
     <tr
         ref={ref}
         className={cn(
-            // Base styles
-            "border-b border-border/30",
-            // Hover interaction - use accent for better visibility in both themes
-            "transition-colors duration-150 hover:bg-accent/50",
+            // Base styles - subtle border separator
+            "border-b border-border",
+            // Hover interaction with clear visibility
+            "transition-colors duration-150 hover:bg-muted/50",
             // Selected state
-            "data-[state=selected]:bg-accent",
-            // Clickable row cursor
-            clickable && "cursor-pointer hover:bg-accent/70",
+            "data-[state=selected]:bg-muted",
+            // Clickable row cursor and stronger hover
+            clickable && "cursor-pointer hover:bg-muted",
             className
         )}
         {...props}
@@ -90,10 +94,10 @@ const TableHead = React.forwardRef<
     <th
         ref={ref}
         className={cn(
-            // Base styles
+            // Base styles - standardized height
             "h-10 px-4 text-left align-middle",
-            // Typography - subtle uppercase for headers
-            "text-xs font-medium uppercase tracking-wider text-muted-foreground",
+            // Typography - semibold uppercase for high-visibility headers
+            "text-xs font-semibold uppercase tracking-wider text-muted-foreground",
             "[&:has([role=checkbox])]:pr-0",
             className
         )}

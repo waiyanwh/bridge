@@ -137,11 +137,11 @@ function PodsTable({ pods, showNamespace = false, searchQuery }: PodsTableProps)
                 <TableBody>
                     {pods.map((pod: Pod) => (
                         <TableRow key={`${pod.namespace || 'default'}/${pod.name}`} clickable>
-                            {/* Name - monospace */}
-                            <TableCell className="font-mono text-xs text-muted-foreground">
+                            {/* Name - monospace, PRIMARY color for high contrast */}
+                            <TableCell className="font-mono text-sm text-foreground">
                                 {pod.name}
                             </TableCell>
-                            {/* Namespace (optional) */}
+                            {/* Namespace (optional) - secondary color */}
                             {showNamespace && (
                                 <TableCell className="text-sm text-muted-foreground">
                                     {pod.namespace || 'default'}
@@ -161,11 +161,11 @@ function PodsTable({ pods, showNamespace = false, searchQuery }: PodsTableProps)
                                     {pod.restarts}
                                 </span>
                             </TableCell>
-                            {/* IP - monospace */}
-                            <TableCell className="font-mono text-xs text-muted-foreground">
+                            {/* IP - monospace, secondary */}
+                            <TableCell className="font-mono text-sm text-muted-foreground">
                                 {pod.ip || '-'}
                             </TableCell>
-                            {/* Age */}
+                            {/* Age - secondary */}
                             <TableCell className="text-muted-foreground text-sm">
                                 {pod.age}
                             </TableCell>
