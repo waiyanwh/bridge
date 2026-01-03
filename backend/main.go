@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"flag"
 	"io"
 	"io/fs"
 	"log"
@@ -20,6 +21,10 @@ import (
 var frontendFS embed.FS
 
 func main() {
+	// Parse command-line flags
+	portFlag := flag.String("port", "", "HTTP server port (overrides PORT env var, default: 8080)")
+	flag.Parse()
+
 	// Initialize Kubernetes ClientManager (supports dynamic context switching)
 	// Uses lazy connection: if SSO token is expired, app still starts and will retry on first request
 	clientManager, err := k8s.NewClientManager()
@@ -54,8 +59,11 @@ func main() {
 	// Serve embedded frontend (SPA)
 	setupFrontend(router)
 
-	// Get port from environment or use default
-	port := os.Getenv("PORT")
+	// Get port: CLI flag > environment variable > default
+	port := *portFlag
+	if port == "" {
+		port = os.Getenv("PORT")
+	}
 	if port == "" {
 		port = "8080"
 	}
