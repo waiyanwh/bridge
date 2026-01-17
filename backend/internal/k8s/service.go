@@ -14,12 +14,17 @@ import (
 
 // PodInfo represents a simplified pod structure for API responses
 type PodInfo struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-	Status    string `json:"status"`
-	Restarts  int32  `json:"restarts"`
-	Age       string `json:"age"`
-	IP        string `json:"ip"`
+	Name              string `json:"name"`
+	Namespace         string `json:"namespace"`
+	Status            string `json:"status"`
+	Restarts          int32  `json:"restarts"`
+	Age               string `json:"age"`
+	IP                string `json:"ip"`
+	Node              string `json:"node"`
+	PriorityClassName string `json:"priorityClassName,omitempty"`
+	Priority          int32  `json:"priority,omitempty"`
+	SchedulerName     string `json:"schedulerName,omitempty"`
+	QoSClass          string `json:"qosClass,omitempty"`
 }
 
 // ContainerInfo represents container information
@@ -33,33 +38,124 @@ type ContainerInfo struct {
 
 // PodDetail represents full pod details for the detail view
 type PodDetail struct {
-	Name        string            `json:"name"`
-	Namespace   string            `json:"namespace"`
-	Status      string            `json:"status"`
-	IP          string            `json:"ip"`
-	Node        string            `json:"node"`
-	CreatedAt   string            `json:"createdAt"`
-	Age         string            `json:"age"`
-	Labels      map[string]string `json:"labels"`
-	Annotations map[string]string `json:"annotations"`
-	Containers  []ContainerInfo   `json:"containers"`
-	Restarts    int32             `json:"restarts"`
+	Name                       string                      `json:"name"`
+	Namespace                  string                      `json:"namespace"`
+	Status                     string                      `json:"status"`
+	IP                         string                      `json:"ip"`
+	Node                       string                      `json:"node"`
+	CreatedAt                  string                      `json:"createdAt"`
+	Age                        string                      `json:"age"`
+	Labels                     map[string]string           `json:"labels"`
+	Annotations                map[string]string           `json:"annotations"`
+	Containers                 []ContainerInfo             `json:"containers"`
+	Restarts                   int32                       `json:"restarts"`
+	NodeSelector               map[string]string           `json:"nodeSelector,omitempty"`
+	Tolerations                []PodToleration             `json:"tolerations,omitempty"`
+	TopologySpreadConstraints  []TopologySpreadConstraint  `json:"topologySpreadConstraints,omitempty"`
+	Affinity                   *PodAffinity                `json:"affinity,omitempty"`
+	PriorityClassName          string                      `json:"priorityClassName,omitempty"`
+	Priority                   int32                       `json:"priority,omitempty"`
+	SchedulerName              string                      `json:"schedulerName,omitempty"`
+	QoSClass                   string                      `json:"qosClass,omitempty"`
+}
+
+// PodToleration represents a toleration for pod scheduling
+type PodToleration struct {
+	Key               string `json:"key,omitempty"`
+	Operator          string `json:"operator,omitempty"`
+	Value             string `json:"value,omitempty"`
+	Effect            string `json:"effect,omitempty"`
+	TolerationSeconds *int64 `json:"tolerationSeconds,omitempty"`
+}
+
+// TopologySpreadConstraint describes how a group of pods should be spread
+type TopologySpreadConstraint struct {
+	MaxSkew           int32             `json:"maxSkew"`
+	TopologyKey       string            `json:"topologyKey"`
+	WhenUnsatisfiable string            `json:"whenUnsatisfiable"`
+	LabelSelector     map[string]string `json:"labelSelector,omitempty"`
+}
+
+// PodAffinity contains affinity scheduling rules
+type PodAffinity struct {
+	NodeAffinity         *NodeAffinityRules `json:"nodeAffinity,omitempty"`
+	PodAffinity          *AffinityRules     `json:"podAffinity,omitempty"`
+	PodAntiAffinity      *AffinityRules     `json:"podAntiAffinity,omitempty"`
+}
+
+// NodeAffinityRules contains node affinity rules
+type NodeAffinityRules struct {
+	Required  []AffinityTerm `json:"required,omitempty"`
+	Preferred []AffinityTerm `json:"preferred,omitempty"`
+}
+
+// AffinityRules contains pod affinity/anti-affinity rules
+type AffinityRules struct {
+	Required  []PodAffinityTerm `json:"required,omitempty"`
+	Preferred []PodAffinityTerm `json:"preferred,omitempty"`
+}
+
+// AffinityTerm represents a node selector term
+type AffinityTerm struct {
+	MatchExpressions []LabelSelectorRequirement `json:"matchExpressions,omitempty"`
+	Weight           int32                       `json:"weight,omitempty"`
+}
+
+// PodAffinityTerm represents a pod selector term
+type PodAffinityTerm struct {
+	TopologyKey      string                     `json:"topologyKey"`
+	LabelSelector    map[string]string          `json:"labelSelector,omitempty"`
+	MatchExpressions []LabelSelectorRequirement `json:"matchExpressions,omitempty"`
+	Namespaces       []string                   `json:"namespaces,omitempty"`
+	Weight           int32                      `json:"weight,omitempty"`
+}
+
+// LabelSelectorRequirement is a selector requirement
+type LabelSelectorRequirement struct {
+	Key      string   `json:"key"`
+	Operator string   `json:"operator"`
+	Values   []string `json:"values,omitempty"`
+}
+
+// NodeTaint represents a taint on a node
+type NodeTaint struct {
+	Key    string `json:"key"`
+	Value  string `json:"value"`
+	Effect string `json:"effect"`
+}
+
+// NodeCondition represents a node condition
+type NodeCondition struct {
+	Type    string `json:"type"`
+	Status  string `json:"status"`
+	Reason  string `json:"reason,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
 // NodeInfo represents node information with resource metrics
 type NodeInfo struct {
-	Name               string `json:"name"`
-	Status             string `json:"status"`
-	Role               string `json:"role"`
-	Version            string `json:"version"`
-	CPUCapacity        int64  `json:"cpuCapacity"`        // in millicores
-	CPUAllocatable     int64  `json:"cpuAllocatable"`     // in millicores
-	CPUUsagePercent    int    `json:"cpuUsagePercent"`    // 0-100
-	MemoryCapacity     int64  `json:"memoryCapacity"`     // in bytes
-	MemoryAllocatable  int64  `json:"memoryAllocatable"`  // in bytes
-	MemoryUsagePercent int    `json:"memoryUsagePercent"` // 0-100
-	PodCount           int    `json:"podCount"`
-	Age                string `json:"age"`
+	Name               string            `json:"name"`
+	Status             string            `json:"status"`
+	Role               string            `json:"role"`
+	Version            string            `json:"version"`
+	Labels             map[string]string `json:"labels"`
+	Annotations        map[string]string `json:"annotations"`
+	Taints             []NodeTaint       `json:"taints"`
+	Conditions         []NodeCondition   `json:"conditions"`
+	CPUCapacity        int64             `json:"cpuCapacity"`        // in millicores
+	CPUAllocatable     int64             `json:"cpuAllocatable"`     // in millicores
+	CPUUsagePercent    int               `json:"cpuUsagePercent"`    // 0-100
+	MemoryCapacity     int64             `json:"memoryCapacity"`     // in bytes
+	MemoryAllocatable  int64             `json:"memoryAllocatable"`  // in bytes
+	MemoryUsagePercent int               `json:"memoryUsagePercent"` // 0-100
+	PodsCapacity       int64             `json:"podsCapacity"`
+	PodsAllocatable    int64             `json:"podsAllocatable"`
+	PodCount           int               `json:"podCount"`
+	Age                string            `json:"age"`
+	OSImage            string            `json:"osImage"`
+	KernelVersion      string            `json:"kernelVersion"`
+	ContainerRuntime   string            `json:"containerRuntime"`
+	Architecture       string            `json:"architecture"`
 }
 
 // ConfigMapInfo represents a ConfigMap (list view)
@@ -191,18 +287,32 @@ func (s *Service) GetPodDetail(ctx context.Context, namespace, name string) (*Po
 		totalRestarts += cs.RestartCount
 	}
 
+	// Get priority
+	var priority int32
+	if pod.Spec.Priority != nil {
+		priority = *pod.Spec.Priority
+	}
+
 	return &PodDetail{
-		Name:        pod.Name,
-		Namespace:   pod.Namespace,
-		Status:      getPodStatus(pod),
-		IP:          pod.Status.PodIP,
-		Node:        pod.Spec.NodeName,
-		CreatedAt:   pod.CreationTimestamp.Format(time.RFC3339),
-		Age:         formatAge(pod.CreationTimestamp.Time),
-		Labels:      pod.Labels,
-		Annotations: pod.Annotations,
-		Containers:  containers,
-		Restarts:    totalRestarts,
+		Name:                      pod.Name,
+		Namespace:                 pod.Namespace,
+		Status:                    getPodStatus(pod),
+		IP:                        pod.Status.PodIP,
+		Node:                      pod.Spec.NodeName,
+		CreatedAt:                 pod.CreationTimestamp.Format(time.RFC3339),
+		Age:                       formatAge(pod.CreationTimestamp.Time),
+		Labels:                    pod.Labels,
+		Annotations:               pod.Annotations,
+		Containers:                containers,
+		Restarts:                  totalRestarts,
+		NodeSelector:              pod.Spec.NodeSelector,
+		Tolerations:               convertTolerations(pod.Spec.Tolerations),
+		TopologySpreadConstraints: convertTopologyConstraints(pod.Spec.TopologySpreadConstraints),
+		Affinity:                  convertAffinity(pod.Spec.Affinity),
+		PriorityClassName:         pod.Spec.PriorityClassName,
+		Priority:                  priority,
+		SchedulerName:             pod.Spec.SchedulerName,
+		QoSClass:                  string(pod.Status.QOSClass),
 	}, nil
 }
 
@@ -284,6 +394,10 @@ func nodeToNodeInfo(node *corev1.Node, podCount int) NodeInfo {
 	memoryCapacity := node.Status.Capacity.Memory().Value()
 	memoryAllocatable := node.Status.Allocatable.Memory().Value()
 
+	// Get pods capacity
+	podsCapacity := node.Status.Capacity.Pods().Value()
+	podsAllocatable := node.Status.Allocatable.Pods().Value()
+
 	// Calculate usage as: (capacity - allocatable) / capacity * 100
 	// This gives us how much is reserved/used by the system
 	// In a real scenario with metrics-server, we'd get actual usage
@@ -314,19 +428,62 @@ func nodeToNodeInfo(node *corev1.Node, podCount int) NodeInfo {
 		}
 	}
 
+	// Build taints list
+	taints := make([]NodeTaint, 0, len(node.Spec.Taints))
+	for _, t := range node.Spec.Taints {
+		taints = append(taints, NodeTaint{
+			Key:    t.Key,
+			Value:  t.Value,
+			Effect: string(t.Effect),
+		})
+	}
+
+	// Build conditions list
+	conditions := make([]NodeCondition, 0, len(node.Status.Conditions))
+	for _, c := range node.Status.Conditions {
+		conditions = append(conditions, NodeCondition{
+			Type:    string(c.Type),
+			Status:  string(c.Status),
+			Reason:  c.Reason,
+			Message: c.Message,
+		})
+	}
+
+	// Copy labels (or empty map if nil)
+	labels := make(map[string]string)
+	for k, v := range node.Labels {
+		labels[k] = v
+	}
+
+	// Copy annotations (or empty map if nil)
+	annotations := make(map[string]string)
+	for k, v := range node.Annotations {
+		annotations[k] = v
+	}
+
 	return NodeInfo{
 		Name:               node.Name,
 		Status:             status,
 		Role:               role,
 		Version:            node.Status.NodeInfo.KubeletVersion,
+		Labels:             labels,
+		Annotations:        annotations,
+		Taints:             taints,
+		Conditions:         conditions,
 		CPUCapacity:        cpuCapacity,
 		CPUAllocatable:     cpuAllocatable,
 		CPUUsagePercent:    cpuUsagePercent,
 		MemoryCapacity:     memoryCapacity,
 		MemoryAllocatable:  memoryAllocatable,
 		MemoryUsagePercent: memoryUsagePercent,
+		PodsCapacity:       podsCapacity,
+		PodsAllocatable:    podsAllocatable,
 		PodCount:           podCount,
 		Age:                formatAge(node.CreationTimestamp.Time),
+		OSImage:            node.Status.NodeInfo.OSImage,
+		KernelVersion:      node.Status.NodeInfo.KernelVersion,
+		ContainerRuntime:   node.Status.NodeInfo.ContainerRuntimeVersion,
+		Architecture:       node.Status.NodeInfo.Architecture,
 	}
 }
 
@@ -471,13 +628,24 @@ func podToPodInfo(pod *corev1.Pod) PodInfo {
 		ip = "<pending>"
 	}
 
+	// Get priority (may be nil)
+	var priority int32
+	if pod.Spec.Priority != nil {
+		priority = *pod.Spec.Priority
+	}
+
 	return PodInfo{
-		Name:      pod.Name,
-		Namespace: pod.Namespace,
-		Status:    status,
-		Restarts:  totalRestarts,
-		Age:       age,
-		IP:        ip,
+		Name:              pod.Name,
+		Namespace:         pod.Namespace,
+		Status:            status,
+		Restarts:          totalRestarts,
+		Age:               age,
+		IP:                ip,
+		Node:              pod.Spec.NodeName,
+		PriorityClassName: pod.Spec.PriorityClassName,
+		Priority:          priority,
+		SchedulerName:     pod.Spec.SchedulerName,
+		QoSClass:          string(pod.Status.QOSClass),
 	}
 }
 
@@ -534,4 +702,142 @@ func formatAge(t time.Time) string {
 	}
 	seconds := int(duration.Seconds())
 	return fmt.Sprintf("%ds", seconds)
+}
+
+// convertTolerations converts K8s tolerations to our API type
+func convertTolerations(tolerations []corev1.Toleration) []PodToleration {
+	if len(tolerations) == 0 {
+		return nil
+	}
+	result := make([]PodToleration, len(tolerations))
+	for i, t := range tolerations {
+		result[i] = PodToleration{
+			Key:               t.Key,
+			Operator:          string(t.Operator),
+			Value:             t.Value,
+			Effect:            string(t.Effect),
+			TolerationSeconds: t.TolerationSeconds,
+		}
+	}
+	return result
+}
+
+// convertTopologyConstraints converts K8s topology constraints to our API type
+func convertTopologyConstraints(constraints []corev1.TopologySpreadConstraint) []TopologySpreadConstraint {
+	if len(constraints) == 0 {
+		return nil
+	}
+	result := make([]TopologySpreadConstraint, len(constraints))
+	for i, c := range constraints {
+		tsc := TopologySpreadConstraint{
+			MaxSkew:           c.MaxSkew,
+			TopologyKey:       c.TopologyKey,
+			WhenUnsatisfiable: string(c.WhenUnsatisfiable),
+		}
+		if c.LabelSelector != nil && c.LabelSelector.MatchLabels != nil {
+			tsc.LabelSelector = c.LabelSelector.MatchLabels
+		}
+		result[i] = tsc
+	}
+	return result
+}
+
+// convertAffinity converts K8s affinity to our API type
+func convertAffinity(affinity *corev1.Affinity) *PodAffinity {
+	if affinity == nil {
+		return nil
+	}
+	result := &PodAffinity{}
+
+	// Convert Node Affinity
+	if affinity.NodeAffinity != nil {
+		result.NodeAffinity = &NodeAffinityRules{}
+		
+		// Required terms
+		if affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+			for _, term := range affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+				at := AffinityTerm{}
+				for _, expr := range term.MatchExpressions {
+					at.MatchExpressions = append(at.MatchExpressions, LabelSelectorRequirement{
+						Key:      expr.Key,
+						Operator: string(expr.Operator),
+						Values:   expr.Values,
+					})
+				}
+				result.NodeAffinity.Required = append(result.NodeAffinity.Required, at)
+			}
+		}
+		
+		// Preferred terms
+		for _, term := range affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
+			at := AffinityTerm{Weight: term.Weight}
+			for _, expr := range term.Preference.MatchExpressions {
+				at.MatchExpressions = append(at.MatchExpressions, LabelSelectorRequirement{
+					Key:      expr.Key,
+					Operator: string(expr.Operator),
+					Values:   expr.Values,
+				})
+			}
+			result.NodeAffinity.Preferred = append(result.NodeAffinity.Preferred, at)
+		}
+	}
+
+	// Convert Pod Affinity
+	if affinity.PodAffinity != nil {
+		result.PodAffinity = convertPodAffinityTerms(affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution,
+			affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution)
+	}
+
+	// Convert Pod Anti-Affinity
+	if affinity.PodAntiAffinity != nil {
+		result.PodAntiAffinity = convertPodAffinityTerms(affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution,
+			affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution)
+	}
+
+	return result
+}
+
+// convertPodAffinityTerms converts pod affinity terms to our API type
+func convertPodAffinityTerms(required []corev1.PodAffinityTerm, preferred []corev1.WeightedPodAffinityTerm) *AffinityRules {
+	rules := &AffinityRules{}
+
+	for _, term := range required {
+		pat := PodAffinityTerm{
+			TopologyKey: term.TopologyKey,
+			Namespaces:  term.Namespaces,
+		}
+		if term.LabelSelector != nil {
+			pat.LabelSelector = term.LabelSelector.MatchLabels
+			for _, expr := range term.LabelSelector.MatchExpressions {
+				pat.MatchExpressions = append(pat.MatchExpressions, LabelSelectorRequirement{
+					Key:      expr.Key,
+					Operator: string(expr.Operator),
+					Values:   expr.Values,
+				})
+			}
+		}
+		rules.Required = append(rules.Required, pat)
+	}
+
+	for _, wterm := range preferred {
+		term := wterm.PodAffinityTerm
+		pat := PodAffinityTerm{
+			TopologyKey: term.TopologyKey,
+			Namespaces:  term.Namespaces,
+			Weight:      wterm.Weight,
+		}
+		if term.LabelSelector != nil {
+			pat.LabelSelector = term.LabelSelector.MatchLabels
+			for _, expr := range term.LabelSelector.MatchExpressions {
+				pat.MatchExpressions = append(pat.MatchExpressions, LabelSelectorRequirement{
+					Key:      expr.Key,
+					Operator: string(expr.Operator),
+					Values:   expr.Values,
+				})
+			}
+		}
+		rules.Preferred = append(rules.Preferred, pat)
+	}
+
+	return rules
 }

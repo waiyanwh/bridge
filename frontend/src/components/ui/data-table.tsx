@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Search } from 'lucide-react'
+import { Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import {
     Table,
@@ -18,6 +18,13 @@ export interface Column<T> {
     align?: 'left' | 'center' | 'right'
     render?: (item: T) => React.ReactNode
     className?: string
+    sortable?: boolean
+    sortingFn?: (a: T, b: T) => number
+}
+
+interface SortConfig {
+    key: string
+    direction: 'asc' | 'desc'
 }
 
 interface DataTableProps<T> {
@@ -29,6 +36,7 @@ interface DataTableProps<T> {
     onRowClick?: (item: T) => void
     isLoading?: boolean
     emptyMessage?: string
+    defaultSort?: SortConfig
 }
 
 export function DataTable<T>({
@@ -40,20 +48,88 @@ export function DataTable<T>({
     onRowClick,
     isLoading,
     emptyMessage = 'No data found.',
+    defaultSort,
 }: DataTableProps<T>) {
     const [searchQuery, setSearchQuery] = React.useState('')
+    const [sortConfig, setSortConfig] = React.useState<SortConfig | null>(defaultSort ?? null)
 
-    // Filter data by search query
-    const filteredData = React.useMemo(() => {
-        if (!searchQuery || !searchKey) return data
-        return data.filter((item) => {
-            const value = item[searchKey]
-            if (typeof value === 'string') {
-                return value.toLowerCase().includes(searchQuery.toLowerCase())
+    // Handle sorting toggle
+    const handleSort = (key: string) => {
+        setSortConfig((current) => {
+            if (current?.key === key) {
+                // Toggle direction or clear
+                if (current.direction === 'asc') {
+                    return { key, direction: 'desc' }
+                } else {
+                    return null // Clear sort after desc
+                }
             }
-            return true
+            // New sort key
+            return { key, direction: 'asc' }
         })
-    }, [data, searchQuery, searchKey])
+    }
+
+    // Get sort icon for a column
+    const getSortIcon = (columnKey: string) => {
+        if (sortConfig?.key !== columnKey) {
+            return <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+        }
+        if (sortConfig.direction === 'asc') {
+            return <ArrowUp className="ml-1 h-3 w-3" />
+        }
+        return <ArrowDown className="ml-1 h-3 w-3" />
+    }
+
+    // Filter and sort data
+    const processedData = React.useMemo(() => {
+        let result = [...data]
+
+        // Apply search filter
+        if (searchQuery && searchKey) {
+            result = result.filter((item) => {
+                const value = item[searchKey]
+                if (typeof value === 'string') {
+                    return value.toLowerCase().includes(searchQuery.toLowerCase())
+                }
+                return true
+            })
+        }
+
+        // Apply sorting
+        if (sortConfig) {
+            const column = columns.find((col) => col.key === sortConfig.key)
+
+            result.sort((a, b) => {
+                // Use custom sorting function if provided
+                if (column?.sortingFn) {
+                    const comparison = column.sortingFn(a, b)
+                    return sortConfig.direction === 'asc' ? comparison : -comparison
+                }
+
+                // Default sorting by key value
+                const aValue = (a as Record<string, unknown>)[sortConfig.key]
+                const bValue = (b as Record<string, unknown>)[sortConfig.key]
+
+                // Handle null/undefined
+                if (aValue == null && bValue == null) return 0
+                if (aValue == null) return sortConfig.direction === 'asc' ? -1 : 1
+                if (bValue == null) return sortConfig.direction === 'asc' ? 1 : -1
+
+                // Compare by type
+                if (typeof aValue === 'number' && typeof bValue === 'number') {
+                    return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue
+                }
+
+                // String comparison
+                const aStr = String(aValue).toLowerCase()
+                const bStr = String(bValue).toLowerCase()
+                const comparison = aStr.localeCompare(bStr)
+                return sortConfig.direction === 'asc' ? comparison : -comparison
+            })
+        }
+
+        return result
+    }, [data, searchQuery, searchKey, sortConfig, columns])
 
     return (
         <div className="space-y-3">
@@ -84,10 +160,15 @@ export function DataTable<T>({
                                     className={cn(
                                         'h-9 text-xs font-medium uppercase tracking-wide text-muted-foreground',
                                         column.align === 'center' && 'text-center',
-                                        column.align === 'right' && 'text-right'
+                                        column.align === 'right' && 'text-right',
+                                        column.sortable && 'cursor-pointer select-none hover:text-foreground'
                                     )}
+                                    onClick={column.sortable ? () => handleSort(column.key) : undefined}
                                 >
-                                    {column.header}
+                                    <span className="inline-flex items-center">
+                                        {column.header}
+                                        {column.sortable && getSortIcon(column.key)}
+                                    </span>
                                 </TableHead>
                             ))}
                         </TableRow>
@@ -102,7 +183,7 @@ export function DataTable<T>({
                                     Loading...
                                 </TableCell>
                             </TableRow>
-                        ) : filteredData.length === 0 ? (
+                        ) : processedData.length === 0 ? (
                             <TableRow>
                                 <TableCell
                                     colSpan={columns.length}
@@ -112,7 +193,7 @@ export function DataTable<T>({
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            filteredData.map((item) => (
+                            processedData.map((item) => (
                                 <TableRow
                                     key={keyExtractor(item)}
                                     onClick={() => onRowClick?.(item)}

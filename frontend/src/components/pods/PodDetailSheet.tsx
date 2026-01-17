@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Box, Tag, Server, RefreshCw, TerminalSquare } from 'lucide-react'
+import { Box, Tag, Server, RefreshCw, TerminalSquare, Gauge, Settings } from 'lucide-react'
 import {
     Sheet,
     SheetContent,
@@ -81,6 +81,10 @@ export function PodDetailSheet({ pod, open, onOpenChange }: PodDetailSheetProps)
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-1 flex-col overflow-hidden">
                         <TabsList className="px-6">
                             <TabsTrigger value="overview">Overview</TabsTrigger>
+                            <TabsTrigger value="scheduling" className="gap-1.5">
+                                <Settings className="h-3.5 w-3.5" />
+                                Scheduling
+                            </TabsTrigger>
                             <TabsTrigger value="logs">Logs</TabsTrigger>
                             <TabsTrigger value="terminal" className="gap-1.5">
                                 <TerminalSquare className="h-3.5 w-3.5" />
@@ -129,6 +133,44 @@ export function PodDetailSheet({ pod, open, onOpenChange }: PodDetailSheetProps)
                                         </div>
                                     </section>
 
+                                    {/* Scheduling */}
+                                    <section>
+                                        <h3 className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                                            <Gauge className="h-4 w-4" />
+                                            Scheduling
+                                        </h3>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="rounded-md border p-3">
+                                                <span className="text-xs text-muted-foreground">QoS Class</span>
+                                                <p className="font-medium text-sm mt-1">
+                                                    <Badge variant={
+                                                        pod.qosClass === 'Guaranteed' ? 'success' :
+                                                            pod.qosClass === 'Burstable' ? 'warning' : 'secondary'
+                                                    }>
+                                                        {pod.qosClass || 'Unknown'}
+                                                    </Badge>
+                                                </p>
+                                            </div>
+                                            <div className="rounded-md border p-3">
+                                                <span className="text-xs text-muted-foreground">Scheduler</span>
+                                                <p className="font-mono text-sm mt-1">
+                                                    {pod.schedulerName || 'default-scheduler'}
+                                                </p>
+                                            </div>
+                                            <div className="rounded-md border p-3">
+                                                <span className="text-xs text-muted-foreground">Priority Class</span>
+                                                <p className="font-mono text-sm mt-1">
+                                                    {pod.priorityClassName || '-'}
+                                                </p>
+                                            </div>
+                                            <div className="rounded-md border p-3">
+                                                <span className="text-xs text-muted-foreground">Priority Value</span>
+                                                <p className="font-mono text-sm mt-1">
+                                                    {pod.priority ?? 0}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </section>
                                     {/* Labels */}
                                     {podDetail.labels && Object.keys(podDetail.labels).length > 0 && (
                                         <section>
@@ -187,6 +229,203 @@ export function PodDetailSheet({ pod, open, onOpenChange }: PodDetailSheetProps)
                             ) : null}
                         </TabsContent>
 
+                        {/* Scheduling Tab */}
+                        <TabsContent value="scheduling" className="overflow-auto p-6">
+                            {isLoading ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
+                                </div>
+                            ) : podDetail ? (
+                                <div className="space-y-6">
+                                    {/* Node Selector */}
+                                    <section className="rounded-lg border p-4">
+                                        <h3 className="mb-3 text-sm font-medium">Node Selector</h3>
+                                        {podDetail.nodeSelector && Object.keys(podDetail.nodeSelector).length > 0 ? (
+                                            <div className="flex flex-wrap gap-2">
+                                                {Object.entries(podDetail.nodeSelector).map(([key, value]) => (
+                                                    <Badge key={key} variant="secondary" className="font-mono text-xs">
+                                                        {key}={value}
+                                                    </Badge>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground">No node selector defined. Pod can run on any node.</p>
+                                        )}
+                                    </section>
+
+                                    {/* Tolerations */}
+                                    <section className="rounded-lg border p-4">
+                                        <h3 className="mb-3 text-sm font-medium">Tolerations</h3>
+                                        {podDetail.tolerations && podDetail.tolerations.length > 0 ? (
+                                            <div className="space-y-2">
+                                                {podDetail.tolerations.map((t, i) => (
+                                                    <div key={i} className="flex items-center gap-2 text-sm">
+                                                        <Badge variant="outline" className="font-mono text-xs">
+                                                            {t.key || '*'}{t.operator === 'Exists' ? '' : `=${t.value || ''}`}:{t.effect || 'All'}
+                                                        </Badge>
+                                                        {t.tolerationSeconds && (
+                                                            <span className="text-xs text-muted-foreground">
+                                                                for {t.tolerationSeconds}s
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground">No tolerations defined.</p>
+                                        )}
+                                    </section>
+
+                                    {/* Node Affinity */}
+                                    {podDetail.affinity?.nodeAffinity && (
+                                        <section className="rounded-lg border p-4">
+                                            <h3 className="mb-3 text-sm font-medium">Node Affinity</h3>
+                                            {podDetail.affinity.nodeAffinity.required && podDetail.affinity.nodeAffinity.required.length > 0 && (
+                                                <div className="mb-3">
+                                                    <p className="mb-2 text-xs font-medium text-destructive uppercase">Required</p>
+                                                    <div className="space-y-1">
+                                                        {podDetail.affinity.nodeAffinity.required.map((term, i) => (
+                                                            term.matchExpressions?.map((expr, j) => (
+                                                                <div key={`${i}-${j}`} className="text-sm font-mono bg-destructive/10 px-2 py-1 rounded">
+                                                                    {expr.key} {expr.operator} [{expr.values?.join(', ')}]
+                                                                </div>
+                                                            ))
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {podDetail.affinity.nodeAffinity.preferred && podDetail.affinity.nodeAffinity.preferred.length > 0 && (
+                                                <div>
+                                                    <p className="mb-2 text-xs font-medium text-blue-500 uppercase">Preferred</p>
+                                                    <div className="space-y-1">
+                                                        {podDetail.affinity.nodeAffinity.preferred.map((term, i) => (
+                                                            term.matchExpressions?.map((expr, j) => (
+                                                                <div key={`${i}-${j}`} className="text-sm font-mono bg-blue-500/10 px-2 py-1 rounded flex items-center gap-2">
+                                                                    <span className="text-xs text-muted-foreground">weight: {term.weight}</span>
+                                                                    {expr.key} {expr.operator} [{expr.values?.join(', ')}]
+                                                                </div>
+                                                            ))
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </section>
+                                    )}
+
+                                    {/* Pod Affinity */}
+                                    {podDetail.affinity?.podAffinity && ((podDetail.affinity.podAffinity.required?.length ?? 0) > 0 || (podDetail.affinity.podAffinity.preferred?.length ?? 0) > 0) && (
+                                        <section className="rounded-lg border p-4 border-green-500/30">
+                                            <h3 className="mb-3 text-sm font-medium text-green-500">Pod Affinity (Attract)</h3>
+                                            {podDetail.affinity.podAffinity.required?.map((term, i) => (
+                                                <div key={i} className="text-sm mb-2">
+                                                    <Badge variant="destructive" className="mr-2">Required</Badge>
+                                                    <span className="font-mono">topologyKey: {term.topologyKey}</span>
+                                                    {term.labelSelector && (
+                                                        <div className="ml-4 mt-1 text-xs text-muted-foreground">
+                                                            labels: {Object.entries(term.labelSelector).map(([k, v]) => `${k}=${v}`).join(', ')}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                            {podDetail.affinity.podAffinity.preferred?.map((term, i) => (
+                                                <div key={i} className="text-sm mb-2">
+                                                    <Badge variant="secondary" className="mr-2">Preferred (w:{term.weight})</Badge>
+                                                    <span className="font-mono">topologyKey: {term.topologyKey}</span>
+                                                </div>
+                                            ))}
+                                        </section>
+                                    )}
+
+                                    {/* Pod Anti-Affinity */}
+                                    {podDetail.affinity?.podAntiAffinity && ((podDetail.affinity.podAntiAffinity.required?.length ?? 0) > 0 || (podDetail.affinity.podAntiAffinity.preferred?.length ?? 0) > 0) && (
+                                        <section className="rounded-lg border p-4 border-red-500/30">
+                                            <h3 className="mb-3 text-sm font-medium text-red-500">Pod Anti-Affinity (Repel)</h3>
+                                            {podDetail.affinity.podAntiAffinity.required?.map((term, i) => (
+                                                <div key={i} className="text-sm mb-2">
+                                                    <Badge variant="destructive" className="mr-2">Required</Badge>
+                                                    <span className="font-mono">topologyKey: {term.topologyKey}</span>
+                                                    {term.labelSelector && (
+                                                        <div className="ml-4 mt-1 text-xs text-muted-foreground">
+                                                            labels: {Object.entries(term.labelSelector).map(([k, v]) => `${k}=${v}`).join(', ')}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                            {podDetail.affinity.podAntiAffinity.preferred?.map((term, i) => (
+                                                <div key={i} className="text-sm mb-2">
+                                                    <Badge variant="secondary" className="mr-2">Preferred (w:{term.weight})</Badge>
+                                                    <span className="font-mono">topologyKey: {term.topologyKey}</span>
+                                                </div>
+                                            ))}
+                                        </section>
+                                    )}
+
+                                    {/* Topology Spread Constraints */}
+                                    <section className="rounded-lg border p-4">
+                                        <h3 className="mb-3 text-sm font-medium">Topology Spread Constraints</h3>
+                                        {podDetail.topologySpreadConstraints && podDetail.topologySpreadConstraints.length > 0 ? (
+                                            <div className="space-y-3">
+                                                {podDetail.topologySpreadConstraints.map((tsc, i) => (
+                                                    <div key={i} className="bg-muted/50 p-3 rounded-md">
+                                                        <div className="grid grid-cols-3 gap-2 text-sm">
+                                                            <div>
+                                                                <span className="text-xs text-muted-foreground">Topology Key</span>
+                                                                <p className="font-mono">{tsc.topologyKey}</p>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-xs text-muted-foreground">Max Skew</span>
+                                                                <p className="font-mono">{tsc.maxSkew}</p>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-xs text-muted-foreground">When Unsatisfiable</span>
+                                                                <Badge variant={tsc.whenUnsatisfiable === 'DoNotSchedule' ? 'destructive' : 'secondary'}>
+                                                                    {tsc.whenUnsatisfiable}
+                                                                </Badge>
+                                                            </div>
+                                                        </div>
+                                                        {tsc.labelSelector && Object.keys(tsc.labelSelector).length > 0 && (
+                                                            <div className="mt-2 text-xs text-muted-foreground">
+                                                                Selector: {Object.entries(tsc.labelSelector).map(([k, v]) => `${k}=${v}`).join(', ')}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground">No topology spread constraints defined.</p>
+                                        )}
+                                    </section>
+
+                                    {/* Priority & Scheduler */}
+                                    <section className="rounded-lg border p-4">
+                                        <h3 className="mb-3 text-sm font-medium">Priority & Scheduler</h3>
+                                        <div className="grid grid-cols-2 gap-4 text-sm">
+                                            <div>
+                                                <span className="text-xs text-muted-foreground">Priority Class</span>
+                                                <p className="font-mono">{podDetail.priorityClassName || '-'}</p>
+                                            </div>
+                                            <div>
+                                                <span className="text-xs text-muted-foreground">Priority Value</span>
+                                                <p className="font-mono">{podDetail.priority ?? 0}</p>
+                                            </div>
+                                            <div>
+                                                <span className="text-xs text-muted-foreground">Scheduler</span>
+                                                <p className="font-mono">{podDetail.schedulerName || 'default-scheduler'}</p>
+                                            </div>
+                                            <div>
+                                                <span className="text-xs text-muted-foreground">QoS Class</span>
+                                                <Badge variant={
+                                                    podDetail.qosClass === 'Guaranteed' ? 'success' :
+                                                        podDetail.qosClass === 'Burstable' ? 'warning' : 'secondary'
+                                                }>
+                                                    {podDetail.qosClass || 'Unknown'}
+                                                </Badge>
+                                            </div>
+                                        </div>
+                                    </section>
+                                </div>
+                            ) : null}
+                        </TabsContent>
                         {/* Logs Tab */}
                         <TabsContent value="logs" className="relative flex-1 overflow-hidden">
                             <LogViewer namespace={pod.namespace} podName={pod.name} />
