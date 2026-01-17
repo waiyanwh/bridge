@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Box, Tag, Server, RefreshCw, TerminalSquare, Gauge, Settings } from 'lucide-react'
+import { Box, Tag, Server, RefreshCw, TerminalSquare, Gauge, Settings, Activity } from 'lucide-react'
 import {
     Sheet,
     SheetContent,
@@ -14,9 +14,10 @@ import { LogViewer } from './LogViewer'
 import { Terminal } from './Terminal'
 
 
-import { usePodDetail } from '@/hooks'
+import { usePodDetail, useEvents } from '@/hooks'
 import { useQueryClient } from '@tanstack/react-query'
 import type { Pod, ContainerInfo } from '@/types'
+import { EventsTable } from '@/components/events/EventsTable'
 
 interface PodDetailSheetProps {
     pod: Pod | null
@@ -84,6 +85,10 @@ export function PodDetailSheet({ pod, open, onOpenChange }: PodDetailSheetProps)
                             <TabsTrigger value="scheduling" className="gap-1.5">
                                 <Settings className="h-3.5 w-3.5" />
                                 Scheduling
+                            </TabsTrigger>
+                            <TabsTrigger value="events" className="gap-1.5">
+                                <Activity className="h-3.5 w-3.5" />
+                                Events
                             </TabsTrigger>
                             <TabsTrigger value="logs">Logs</TabsTrigger>
                             <TabsTrigger value="terminal" className="gap-1.5">
@@ -426,6 +431,11 @@ export function PodDetailSheet({ pod, open, onOpenChange }: PodDetailSheetProps)
                                 </div>
                             ) : null}
                         </TabsContent>
+
+                        {/* Events Tab */}
+                        <TabsContent value="events" className="overflow-auto p-6">
+                            {pod && <PodEvents pod={pod} />}
+                        </TabsContent>
                         {/* Logs Tab */}
                         <TabsContent value="logs" className="relative flex-1 overflow-hidden">
                             <LogViewer namespace={pod.namespace} podName={pod.name} />
@@ -442,4 +452,18 @@ export function PodDetailSheet({ pod, open, onOpenChange }: PodDetailSheetProps)
             </Sheet>
         </>
     )
+}
+
+function PodEvents({ pod }: { pod: Pod }) {
+    const { data, isLoading } = useEvents(pod.namespace, `involvedObject.name=${pod.name}`)
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center py-8">
+                <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
+
+    return <EventsTable events={data?.events || []} />
 }

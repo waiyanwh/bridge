@@ -70,7 +70,7 @@ export function EventsTable({ events }: EventsTableProps) {
                                 </div>
                             </TableCell>
                             {/* Message */}
-                            <TableCell className="text-sm max-w-md truncate" title={event.message}>
+                            <TableCell className="text-sm whitespace-normal break-words">
                                 {event.message}
                             </TableCell>
                             {/* Last Seen */}

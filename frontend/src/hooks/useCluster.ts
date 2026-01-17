@@ -13,9 +13,9 @@ export function useHPAs(namespace: string = 'default') {
     })
 }
 
-export function useEvents(namespace: string = 'default') {
+export function useEvents(namespace: string = 'default', fieldSelector?: string) {
     return useQuery<EventsResponse, Error>({
-        queryKey: ['events', namespace],
-        queryFn: () => fetchEvents(namespace),
+        queryKey: ['events', namespace, fieldSelector],
+        queryFn: () => fetchEvents(namespace, fieldSelector),
     })
 }

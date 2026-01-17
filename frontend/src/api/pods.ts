@@ -699,8 +699,12 @@ export async function fetchHPAs(namespace: string = 'default'): Promise<HPARespo
     return response.json()
 }
 
-export async function fetchEvents(namespace: string = 'default'): Promise<EventsResponse> {
-    const response = await fetch(`${API_BASE}/events?namespace=${encodeURIComponent(namespace)}`)
+export async function fetchEvents(namespace: string = 'default', fieldSelector?: string): Promise<EventsResponse> {
+    let url = `${API_BASE}/events?namespace=${encodeURIComponent(namespace)}`
+    if (fieldSelector) {
+        url += `&fieldSelector=${encodeURIComponent(fieldSelector)}`
+    }
+    const response = await fetch(url)
 
     if (!response.ok) {
         const error = await response.json()

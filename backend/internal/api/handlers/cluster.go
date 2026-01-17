@@ -176,7 +176,12 @@ func (h *ClusterHandler) ListEvents(c *gin.Context) {
 		return
 	}
 
-	eventList, err := clientset.CoreV1().Events(ns).List(context.Background(), metav1.ListOptions{})
+	// Get field selector from query
+	fieldSelector := c.Query("fieldSelector")
+
+	eventList, err := clientset.CoreV1().Events(ns).List(context.Background(), metav1.ListOptions{
+		FieldSelector: fieldSelector,
+	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "KUBERNETES_ERROR",
